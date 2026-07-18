@@ -1,1 +1,0 @@
-Skipping compilation of C:\Users\Joonatan Alanampa\Documents\ASIC\tt-cordic\test\sim_build\unit\sim.vvp
