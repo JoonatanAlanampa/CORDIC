@@ -59,17 +59,25 @@ async def test_code64(dut):
 
 
 @cocotb.test()
-async def test_sigma_delta_density(dut):
+async def test_sigma_delta_and_sync(dut):
     cocotb.start_soon(Clock(dut.clk, 40, unit="ns").start())
     await reset(dut, code=64)
     await ClockCycles(dut.clk, 4000)
 
-    ones_s = ones_c = 0
+    # sine sigma-delta density ~50% over full periods; square sync on
+    # uo[6] flips twice per period, phase-locked to the DDS
+    ones_s = flips = 0
+    prev = (int(dut.uo_out.value) >> 6) & 1
     m = 46_000                           # ~8 full periods at code 64
     for _ in range(m):
         await RisingEdge(dut.clk)
         v = int(dut.uo_out.value)
         ones_s += (v >> 7) & 1
-        ones_c += (v >> 6) & 1
+        cur = (v >> 6) & 1
+        if cur != prev:
+            flips += 1
+        prev = cur
     assert 0.45 < ones_s / m < 0.55, ones_s / m
-    assert 0.45 < ones_c / m < 0.55, ones_c / m
+    f_sync = flips / 2 / (m * 40e-9)
+    f_exp = 64 * 1024 / 2**20 * FS
+    assert abs(f_sync - f_exp) / f_exp < 0.1, (f_sync, f_exp)

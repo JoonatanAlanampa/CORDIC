@@ -13,7 +13,8 @@
  *   ui[7]    reserved (ignored)
  *
  *   uo[7]    sine sigma-delta (TT Audio Pmod position; RC -> analog)
- *   uo[6]    cosine sigma-delta (quadrature: XY scope circle)
+ *   uo[6]    SQUARE sync, phase-locked at the same frequency (scope
+ *            trigger + sine-vs-square timbre demo)
  *   uo[5:1]  live sine level bar (offset binary)
  *   uo[0]    ~1.5 Hz heartbeat — the "chip is alive" pilot light
  *
@@ -76,25 +77,18 @@ module tt_um_joonatanalanampa_cordic (
         eng_busy <= 1'b0;
     end
 
-  // sample latches: hold the wave steady between conversions
-  logic signed [15:0] sin_s, cos_s;
+  // sample latch: hold the wave steady between conversions
+  logic signed [15:0] sin_s;
   always_ff @(posedge clk)
-    if (rst) begin
-      sin_s <= 16'sd0; cos_s <= 16'sd0;
-    end else if (eng_done) begin
-      sin_s <= eng_sin; cos_s <= eng_cos;
-    end
+    if (rst)           sin_s <= 16'sd0;
+    else if (eng_done) sin_s <= eng_sin;
 
   // ---------------------------------------------------------------- outputs
   // first-order sigma-delta: the carry-out's density IS the sample value
-  logic [16:0] sd_sin, sd_cos;
+  logic [16:0] sd_sin;
   always_ff @(posedge clk)
-    if (rst) begin
-      sd_sin <= 17'd0; sd_cos <= 17'd0;
-    end else begin
-      sd_sin <= {1'b0, sd_sin[15:0]} + {1'b0, sin_s ^ 16'h8000};
-      sd_cos <= {1'b0, sd_cos[15:0]} + {1'b0, cos_s ^ 16'h8000};
-    end
+    if (rst) sd_sin <= 17'd0;
+    else     sd_sin <= {1'b0, sd_sin[15:0]} + {1'b0, sin_s ^ 16'h8000};
 
   // heartbeat: bit 23 of a free counter = ~1.5 Hz blink at 25 MHz
   logic [23:0] beat;
@@ -102,11 +96,13 @@ module tt_um_joonatanalanampa_cordic (
     if (rst) beat <= 24'd0;
     else     beat <= beat + 24'd1;
 
+  // uo[6]: phase-locked SQUARE sync at the output frequency — free (one
+  // wire), triggers the scope, and demos sine-vs-square timbre
   assign uo_out = {sd_sin[16],
-                   sd_cos[16],
+                   phase[19],
                    sin_s[15:11] ^ 5'b10000,   // LED bar, offset binary
                    beat[23]};
 
-  wire _unused = &{ena, ui_in[7], uio_in, 1'b0};
+  wire _unused = &{ena, ui_in[7], uio_in, eng_cos, 1'b0};
 
 endmodule

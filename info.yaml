@@ -40,7 +40,7 @@ pinout:
   uo[3]: "LEVEL2"
   uo[4]: "LEVEL3"
   uo[5]: "LEVEL4"
-  uo[6]: "COSINE sigma-delta"
+  uo[6]: "SQUARE sync"
   uo[7]: "SINE sigma-delta (Audio Pmod)"
 
   # Bidirectional pins

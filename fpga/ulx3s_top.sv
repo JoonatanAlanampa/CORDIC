@@ -61,7 +61,7 @@ module ulx3s_top (
 
   // 1-bit sigma-delta streams into the board's 4-bit resistor DAC
   assign audio_l = {4{uo_out[7]}};   // sine
-  assign audio_r = {4{uo_out[6]}};   // cosine
+  assign audio_r = {4{uo_out[6]}};   // square sync: timbre A/B vs the sine
 
   wire _unused = &{sw, uio_out, uio_oe, 1'b0};
 
