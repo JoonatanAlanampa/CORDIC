@@ -13,3 +13,5 @@ test/results.xml
 test/gate_level_netlist.v
 
 fpga/build/
+formal/cordic_prove/
+formal/cordic_cover/

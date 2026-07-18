@@ -226,8 +226,10 @@ module cordic (
     assert (!(done && $past(done)));
   end
 
-  // reachability witnesses: full operations complete on both paths
-  always @(posedge clk) begin
+  // reachability witnesses: full operations complete on both paths.
+  // Guarded by f_valid && !rst — unguarded covers get "reached" at step 1
+  // via free pre-reset register state (fake witnesses; measured).
+  always @(posedge clk) if (f_valid && !rst) begin
     cover (done && !fold_q);
     cover (done && fold_q);
   end
