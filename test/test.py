@@ -10,7 +10,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, RisingEdge
 
-FS = 25e6 / 349          # bit-serial conversion rate at 25 MHz
+FS = 25e6 / 359          # constant-time bit-serial conversion rate at 25 MHz
 
 
 async def reset(dut, code):
@@ -81,3 +81,44 @@ async def test_sigma_delta_and_sync(dut):
     f_sync = flips / 2 / (m * 40e-9)
     f_exp = 64 * 1024 / 2**20 * FS
     assert abs(f_sync - f_exp) / f_exp < 0.1, (f_sync, f_exp)
+
+
+@cocotb.test()
+async def test_spectrum(dut):
+    """FFT the sigma-delta bitstream: fundamental on target, harmonics
+    low. Guards the constant-time schedule — data-dependent op timing
+    would phase-modulate the sample rate and grow fold-correlated
+    harmonics (the flaw this test was written to catch)."""
+    import numpy as np
+
+    cocotb.start_soon(Clock(dut.clk, 40, unit="ns").start())
+    await reset(dut, code=64)              # ~4352 Hz
+    await ClockCycles(dut.clk, 4000)
+
+    n = 1 << 17                            # 131072 samples = ~5.2 ms, ~23 periods
+    bits = np.empty(n, dtype=np.float64)
+    for j in range(n):
+        await RisingEdge(dut.clk)
+        bits[j] = (int(dut.uo_out.value) >> 7) & 1
+
+    x = bits - bits.mean()
+    spec = np.abs(np.fft.rfft(x * np.hanning(n)))
+    freqs = np.fft.rfftfreq(n, d=40e-9)
+
+    f0 = 64 * 1024 / 2**20 * FS
+    def peak_near(f, width=6):
+        i = int(round(f / freqs[1]))
+        lo, hi = max(i - width, 1), i + width
+        return spec[lo:hi].max()
+
+    fund = peak_near(f0)
+    i_meas = np.argmax(spec[1:len(spec) // 4]) + 1
+    assert abs(freqs[i_meas] - f0) / f0 < 0.02, (freqs[i_meas], f0)
+
+    worst_dbc = -100.0
+    for h in range(2, 6):
+        dbc = 20 * np.log10(peak_near(h * f0) / fund)
+        worst_dbc = max(worst_dbc, dbc)
+    dut._log.info("spectrum: fundamental %.1f Hz, worst harmonic %.1f dBc",
+                  freqs[i_meas], worst_dbc)
+    assert worst_dbc < -40, f"harmonic at {worst_dbc:.1f} dBc"

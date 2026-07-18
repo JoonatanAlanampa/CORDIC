@@ -9,7 +9,7 @@
  *
  *   ui[6:0]  frequency code:
  *              0   -> 440 Hz (concert A) — the wake-up default
- *              1..126 -> code * ~70 Hz   (~70 Hz .. ~8.8 kHz)
+ *              1..126 -> code * ~68 Hz   (~68 Hz .. ~8.6 kHz)
  *              127 -> ~2 Hz breathe mode (LED bar visibly waves)
  *   ui[7]    reserved (ignored)
  *
@@ -42,11 +42,11 @@ module tt_um_joonatanalanampa_cordic (
   assign uio_oe  = 8'h00;
 
   // ---------------------------------------------------------------- DDS
-  // fs = clk / ~349 (bit-serial op time) ~ 71.6 kHz sample rate at 25 MHz.
-  // f = inc / 2^20 * fs:  code<<10 -> ~70 Hz per step.
+  // fs = clk / 359 (constant-time bit-serial op) = 69.64 kHz at 25 MHz.
+  // f = inc / 2^20 * fs:  code<<10 -> ~68 Hz per step.
   wire [6:0] code = ui_in[6:0];
-  wire [19:0] dds_inc = (code == 7'd0)   ? 20'd6440   // 440 Hz wake-up tone
-                      : (code == 7'd127) ? 20'd29     // ~2 Hz breathe mode
+  wire [19:0] dds_inc = (code == 7'd0)   ? 20'd6625   // 440.0 Hz wake-up tone
+                      : (code == 7'd127) ? 20'd30     // ~2 Hz breathe mode
                       : {3'b000, code, 10'b0};
 
   logic [19:0] phase;

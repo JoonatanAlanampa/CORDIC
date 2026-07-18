@@ -1,47 +1,29 @@
-# Sample testbench for a Tiny Tapeout project
+# CORDIC-1 test suite
 
-This is a sample testbench for a Tiny Tapeout project. It uses [cocotb](https://docs.cocotb.org/en/stable/) to drive the DUT and check the outputs.
-See below to get started or for more information, check the [website](https://tinytapeout.com/hdl/testing/).
+Three layers, all runnable on Windows without `make`:
 
-## Setting up
+```
+python run_unit.py   # EXHAUSTIVE engine test: all 65,536 angles vs Python's
+                     # math library (worst error 5 LSB), plus vector-mode
+                     # spot checks. ~15 minutes.
 
-1. Edit [Makefile](Makefile) and modify `PROJECT_SOURCES` to point to your Verilog files.
-2. Edit [tb.v](tb.v) and replace `tt_um_example` with your module name.
-
-## How to run
-
-To run the RTL simulation:
-
-```sh
-make -B
+python run.py        # System tests at the chip pins:
+                     #   - 440 Hz wake-up tone measured (code 0)
+                     #   - code-64 frequency vs the DDS formula
+                     #   - sigma-delta density + square-sync frequency lock
+                     #   - FFT spectral test: worst harmonic < -40 dBc
+                     #     (measures -65 dBc; guards the constant-time
+                     #     schedule against sample-jitter regressions)
 ```
 
-To run gatelevel simulation, first harden your project and copy `../runs/wokwi/results/final/verilog/gl/{your_module_name}.v` to `gate_level_netlist.v`.
+Formal verification (control-path k-induction proof + deep BMC witnesses)
+lives in [`../formal/`](../formal/) — see `cordic.sby`.
 
-Then run:
+CI runs the system tests on every push (`test` workflow) and re-runs them
+against the post-layout gate-level netlist (`gl_test` job of the `gds`
+workflow). `requirements.txt` pins the Python deps, including numpy for
+the FFT test.
 
-```sh
-make -B GATES=yes
-```
-
-If you wish to save the waveform in VCD format instead of FST format, edit tb.v to use `$dumpfile("tb.vcd");` and then run:
-
-```sh
-make -B FST=
-```
-
-This will generate `tb.vcd` instead of `tb.fst`.
-
-## How to view the waveform file
-
-Using GTKWave
-
-```sh
-gtkwave tb.fst tb.gtkw
-```
-
-Using Surfer
-
-```sh
-surfer tb.fst
-```
+The classic cocotb + Makefile flow also works (`make -B`, Unix
+environments); waveforms land in `tb.fst` for GTKWave/Surfer. See the
+[TinyTapeout testing guide](https://tinytapeout.com/hdl/testing/).

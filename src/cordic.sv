@@ -11,9 +11,10 @@
 //
 // Schedule: each iteration = 1 decision cycle (k=0: steering direction
 // and subtract-carries latched from fully settled registers) + W=20
-// shift cycles. 16 iterations + optional 21-cycle serial-negate pass
-// (un-applies the 180-degree fold) + capture ~ 340-360 clocks/op:
-// ~72k ops/s at 25 MHz — plenty for an audio DDS.
+// shift cycles. 16 iterations + a 21-cycle equalization pass (serial
+// negate when the fold was applied, idle otherwise) + capture = a
+// CONSTANT 359-clock operation period, independent of the input:
+// ~69.6k ops/s at 25 MHz, and zero data-dependent DDS sample jitter.
 //
 // Interface identical to the parallel version except latency, plus:
 // vector mode accepts the RIGHT half-plane only (xi >= 0); the caller
@@ -160,7 +161,7 @@ module cordic (
             if (k == 5'(W)) begin
               k <= 5'd0;
               if (i == 4'd15)
-                st <= fold_q ? S_NEG : S_CAP;
+                st <= S_NEG;      // ALWAYS: constant-time equalization pass
               else
                 i <= i + 4'd1;
             end else
@@ -168,13 +169,20 @@ module cordic (
           end
 
         S_NEG:
+          // every op spends 21 cycles here: negating x/y when the fold was
+          // applied, idling otherwise — so the operation period is a
+          // CONSTANT 359 cycles regardless of input angle. Data-dependent
+          // timing would phase-modulate the DDS sample rate and put
+          // fold-correlated harmonics in the sine (measured risk, killed).
           if (k == 5'd0) begin
             cx <= 1'b1; cy <= 1'b1;        // +1 of the two's complement
             k  <= 5'd1;
           end else begin
-            x <= {xn, x[W-1:1]};
-            y <= {yn, y[W-1:1]};
-            cx <= xnco; cy <= ynco;
+            if (fold_q) begin
+              x <= {xn, x[W-1:1]};
+              y <= {yn, y[W-1:1]};
+              cx <= xnco; cy <= ynco;
+            end
             if (k == 5'(W)) begin
               k  <= 5'd0;
               st <= S_CAP;
@@ -218,7 +226,7 @@ module cordic (
     // the exact schedule, state by state
     if (st == S_ITER) assert (f_ctr == 9'(i) * 9'd21 + 9'(k));
     if (st == S_NEG)  assert (f_ctr == 9'd336 + 9'(k));
-    if (st == S_CAP)  assert (f_ctr == 9'd336 || f_ctr == 9'd357);
+    if (st == S_CAP)  assert (f_ctr == 9'd357);   // constant-time: always
     if (st == S_IDLE) assert (done || f_ctr == 9'd0);
     // done discipline: one cycle, only after capture, engine back in idle
     if (done) assert (f_st_q == S_CAP);

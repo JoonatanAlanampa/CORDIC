@@ -1,0 +1,20 @@
+     -.--ns INFO     gpi                                ..mbed\gpi_embed.cpp:94   in _embed_init_python              Using Python 3.12.4 interpreter at C:\Users\Joonatan Alanampa\AppData\Local\Programs\Python\Python312\python.exe
+     -.--ns INFO     gpi                                ..\gpi\GpiCommon.cpp:79   in gpi_print_registered_impl       VPI registered
+     0.00ns INFO     cocotb                             Running on Icarus Verilog version 12.0 (devel)
+     0.00ns INFO     cocotb                             Seeding Python random module with 1784408812
+     0.00ns INFO     cocotb                             Initialized cocotb v2.0.1 from C:\Users\Joonatan Alanampa\AppData\Local\Programs\Python\Python312\Lib\site-packages\cocotb
+     0.00ns INFO     cocotb                             Running tests
+     0.00ns INFO     cocotb.regression                  running unit_cordic.test_rotate_exhaustive (1/2)
+943718520.00ns INFO     cocotb.cordic                      rotate exhaustive PASS, worst error 5 LSB
+943718520.00ns INFO     cocotb.regression                  unit_cordic.test_rotate_exhaustive passed
+943718520.00ns INFO     cocotb.regression                  running unit_cordic.test_vector_spots (2/2)
+943862680.00ns INFO     cocotb.cordic                      vector spots PASS
+943862680.00ns INFO     cocotb.regression                  unit_cordic.test_vector_spots passed
+943862680.00ns INFO     cocotb.regression                  ********************************************************************************************
+                                                           ** TEST                                STATUS  SIM TIME (ns)  REAL TIME (s)  RATIO (ns/s) **
+                                                           ********************************************************************************************
+                                                           ** unit_cordic.test_rotate_exhaustive   PASS   943718520.00        1957.95     481993.69  **
+                                                           ** unit_cordic.test_vector_spots        PASS      144160.00           0.32     446161.07  **
+                                                           ********************************************************************************************
+                                                           ** TESTS=2 PASS=2 FAIL=0 SKIP=0                943862680.00        1958.27     481987.18  **
+                                                           ********************************************************************************************
