@@ -3,12 +3,12 @@ project:
   title:        "CORDIC-1"      # Project title
   author:       "Joonatan Alanampa"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "CORDIC trig coprocessor (SPI) + standalone DDS sine generator"      # One line description of what your project does
+  description:  "Standalone sine/cosine generator - bit-serial CORDIC DDS, one tile"      # One line description of what your project does
   language:     "SystemVerilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
   clock_hz:     25000000       # Clock frequency in Hz (or 0 if not applicable)
 
   # How many tiles your design occupies? A single tile is about 167x108 uM.
-  tiles: "1x2"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2 or 8x2
+  tiles: "1x1"          # Valid values: 1x1, 1x2, 2x2, 3x2, 4x2, 6x2 or 8x2
 
   # Your top module name must start with "tt_um_". Make it unique by including your github username:
   top_module:  "tt_um_joonatanalanampa_cordic"
@@ -19,23 +19,22 @@ project:
   source_files:
     - "project.sv"
     - "cordic.sv"
-    - "spi_slave.sv"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
 pinout:
   # Inputs
-  ui[0]: "SPI SCLK / freq0"
-  ui[1]: "SPI MOSI / freq1"
-  ui[2]: "SPI CS_n / freq2"
-  ui[3]: "freq3"
-  ui[4]: "freq4"
-  ui[5]: "freq5"
-  ui[6]: "freq6"
-  ui[7]: "STANDALONE strap"
+  ui[0]: "FREQ0"
+  ui[1]: "FREQ1"
+  ui[2]: "FREQ2"
+  ui[3]: "FREQ3"
+  ui[4]: "FREQ4"
+  ui[5]: "FREQ5"
+  ui[6]: "FREQ6"
+  ui[7]: ""
 
   # Outputs
-  uo[0]: "DONE"
+  uo[0]: "HEARTBEAT"
   uo[1]: "LEVEL0"
   uo[2]: "LEVEL1"
   uo[3]: "LEVEL2"
@@ -45,7 +44,7 @@ pinout:
   uo[7]: "SINE sigma-delta (Audio Pmod)"
 
   # Bidirectional pins
-  uio[0]: "SPI MISO"
+  uio[0]: ""
   uio[1]: ""
   uio[2]: ""
   uio[3]: ""

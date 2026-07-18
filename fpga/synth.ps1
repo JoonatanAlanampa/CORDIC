@@ -11,7 +11,7 @@ $env:PATH = "$oss\bin;$oss\lib;" + $env:PATH
 Set-Location (Split-Path $PSScriptRoot -Parent)
 New-Item -ItemType Directory -Force fpga\build | Out-Null
 
-yosys -q -p "read_verilog -sv src/project.sv src/cordic.sv src/spi_slave.sv fpga/ulx3s_top.sv; synth_ecp5 -top ulx3s_top -json fpga/build/cordic.json"
+yosys -q -p "read_verilog -sv src/project.sv src/cordic.sv fpga/ulx3s_top.sv; synth_ecp5 -top ulx3s_top -json fpga/build/cordic.json"
 if ($LASTEXITCODE -ne 0) { throw "yosys failed" }
 
 nextpnr-ecp5 --85k --package CABGA381 --json fpga/build/cordic.json `

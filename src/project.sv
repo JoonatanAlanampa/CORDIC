@@ -1,33 +1,21 @@
 /*
- * CORDIC-1: trig coprocessor + standalone DDS sine generator, one tile.
+ * CORDIC-1: standalone sine/cosine generator — one TinyTapeout tile.
  *
- * Two personalities:
- *  - Coprocessor (SPI mode 0, same interface family as ServoCtl-8):
- *    write an angle, read sin/cos 18 cycles later; or write a point,
- *    read atan2 + magnitude. 16-bit fixed point, +/-4 LSB (exhaustively
- *    verified).
- *  - Standalone (strap ui[7] high): a DDS sweeps phase at a rate set by
- *    ui[6:0] (~85 Hz .. ~10.8 kHz at 25 MHz), the engine computes sine
- *    continuously, and 1-bit sigma-delta streams on uo[0] (sin) and
- *    uo[1] (cos, quadrature) become clean analog through an RC filter.
- *    No host needed: flip switches, get a precision sine wave.
- *    SPI can also drive the DDS (DDS_INC, ~21.2 Hz/LSB) when strapped low.
+ * A bit-serial CORDIC engine swept by a 20-bit DDS phase accumulator,
+ * streaming quadrature sigma-delta on two pins. Pure instrument: no bus,
+ * no host, no configuration beyond the frequency pins. Select the design,
+ * release reset, and it plays.
  *
- * Pinout:
- *   ui[0] SPI SCLK   ui[7]   STANDALONE strap
- *   ui[1] SPI MOSI   ui[6:0] standalone frequency (when strapped)
- *   ui[2] SPI CS_n   uio[0]  SPI MISO
- *   uo[7] sine sigma-delta (TT Audio Pmod position)
- *   uo[6] cosine sigma-delta (chained second Audio Pmod position)
- *   uo[5:1] sine level bar (offset binary)   uo[0] done flag
+ *   ui[6:0]  frequency code:
+ *              0   -> 440 Hz (concert A) — the wake-up default
+ *              1..126 -> code * ~70 Hz   (~70 Hz .. ~8.8 kHz)
+ *              127 -> ~2 Hz breathe mode (LED bar visibly waves)
+ *   ui[7]    reserved (ignored)
  *
- * Register map (7-bit addr, 8-bit data; ID at 0x7F reads 0xC1):
- *   0x00 CTRL   W: bit0 start, bit1 mode (0 rotate / 1 vector)
- *   0x01 STATUS R: bit0 done (set at op end, cleared by start)
- *   0x02/03 ANGLE_L/H   0x04/05 XIN_L/H     0x06/07 YIN_L/H
- *   0x08/09 COS_L/H (vector: K*magnitude)   0x0A/0B SIN_L/H
- *   0x0C/0D ZOUT_L/H (vector: atan2)
- *   0x10/11 DDS_INC_L/H   0x12 DDS_CTRL (bit0 enable)
+ *   uo[7]    sine sigma-delta (TT Audio Pmod position; RC -> analog)
+ *   uo[6]    cosine sigma-delta (quadrature: XY scope circle)
+ *   uo[5:1]  live sine level bar (offset binary)
+ *   uo[0]    ~1.5 Hz heartbeat — the "chip is alive" pilot light
  *
  * Copyright (c) 2026 Joonatan Alanampa
  * SPDX-License-Identifier: Apache-2.0
@@ -47,140 +35,55 @@ module tt_um_joonatanalanampa_cordic (
 );
 
   wire rst = ~rst_n;
-  wire standalone = ui_in[7];
 
-  // ---------------------------------------------------------------- SPI
-  logic       reg_wr;
-  logic [6:0] reg_addr;
-  logic [7:0] reg_wdata;
-  logic [7:0] reg_rdata;
-  logic       miso;
+  assign uio_out = 8'h00;
+  assign uio_oe  = 8'h00;
 
-  spi_slave u_spi (
-      .clk(clk), .rst_n(rst_n),
-      .sclk_i(ui_in[0]), .mosi_i(ui_in[1]), .cs_n_i(ui_in[2]),
-      .miso_o(miso),
-      .reg_wr(reg_wr), .reg_addr(reg_addr), .reg_wdata(reg_wdata),
-      .reg_rdata(reg_rdata)
-  );
+  // ---------------------------------------------------------------- DDS
+  // fs = clk / ~349 (bit-serial op time) ~ 71.6 kHz sample rate at 25 MHz.
+  // f = inc / 2^20 * fs:  code<<10 -> ~70 Hz per step.
+  wire [6:0] code = ui_in[6:0];
+  wire [19:0] dds_inc = (code == 7'd0)   ? 20'd6440   // 440 Hz wake-up tone
+                      : (code == 7'd127) ? 20'd29     // ~2 Hz breathe mode
+                      : {3'b000, code, 10'b0};
 
-  assign uio_oe  = 8'b0000_0001;
-  assign uio_out = {7'b0, miso};
-
-  // ---------------------------------------------------------------- registers
-  logic        mode_r, dds_en_r, done_r;
-  logic [15:0] angle_r, xin_r, yin_r, dds_inc_r;
-  logic [15:0] cos_r, sin_r, zout_r;
-  logic        spi_pend;                    // start requested, op not issued
+  logic [19:0] phase;
 
   // ---------------------------------------------------------------- engine
-  logic        eng_start, eng_mode, eng_done;
-  logic signed [15:0] eng_cos, eng_sin, eng_zo;
-  logic [15:0] eng_zi;
-  logic        eng_busy, cur_spi;
+  logic        eng_busy;
+  logic        eng_done;
+  logic signed [15:0] eng_cos, eng_sin;
 
   cordic u_cordic (
       .clk(clk), .rst(rst),
-      .start(eng_start), .mode(eng_mode),
-      .zi(eng_zi), .xi(xin_r), .yi(yin_r),
-      .done(eng_done), .cos_o(eng_cos), .sin_o(eng_sin), .zo(eng_zo)
+      .start(!eng_busy), .mode(1'b0),
+      .zi(phase[19:4]), .xi(16'sd0), .yi(16'sd0),
+      .done(eng_done), .cos_o(eng_cos), .sin_o(eng_sin),
+      /* verilator lint_off PINCONNECTEMPTY */
+      .zo()
+      /* verilator lint_on PINCONNECTEMPTY */
   );
-
-  // ---------------------------------------------------------------- DDS
-  // bit-serial engine: ~72k conversions/s at 25 MHz (one per ~347 clk).
-  // f = inc / 2^20 * 72k: standalone ~72 Hz per ui step, SPI ~1.1 Hz/LSB.
-  logic [19:0] phase;
-  wire         dds_en  = standalone | dds_en_r;
-  wire [19:0]  dds_inc = standalone ? {3'b0, ui_in[6:0], 10'b0}
-                                    : {dds_inc_r, 4'b0};
-
-  // issue: a pending SPI op wins; otherwise free-run the DDS
-  wire issue_spi = spi_pend && !eng_busy;
-  wire issue_dds = dds_en && !eng_busy && !spi_pend;
-  assign eng_start = issue_spi || issue_dds;
-  assign eng_mode  = issue_spi ? mode_r : 1'b0;
-  assign eng_zi    = issue_spi ? angle_r : phase[19:4];
 
   always_ff @(posedge clk)
     if (rst) begin
-      eng_busy <= 1'b0; cur_spi <= 1'b0; phase <= 20'd0;
+      eng_busy <= 1'b0;
+      phase    <= 20'd0;
     end else begin
-      if (eng_start) begin
+      if (!eng_busy) begin               // issue the next conversion
         eng_busy <= 1'b1;
-        cur_spi  <= issue_spi;
-        if (issue_dds) phase <= phase + dds_inc;
+        phase    <= phase + dds_inc;
       end else if (eng_done)
         eng_busy <= 1'b0;
     end
 
-  // DDS sample latch (also freshens the LED bar in standalone)
+  // sample latches: hold the wave steady between conversions
   logic signed [15:0] sin_s, cos_s;
   always_ff @(posedge clk)
     if (rst) begin
       sin_s <= 16'sd0; cos_s <= 16'sd0;
-    end else if (eng_done && !cur_spi) begin
+    end else if (eng_done) begin
       sin_s <= eng_sin; cos_s <= eng_cos;
     end
-
-  // ---------------------------------------------------------------- reg file
-  always_ff @(posedge clk)
-    if (rst) begin
-      mode_r <= 1'b0; dds_en_r <= 1'b0; done_r <= 1'b0; spi_pend <= 1'b0;
-      angle_r <= 16'd0; xin_r <= 16'd0; yin_r <= 16'd0; dds_inc_r <= 16'd0;
-      cos_r <= 16'd0; sin_r <= 16'd0; zout_r <= 16'd0;
-    end else begin
-      if (eng_done && cur_spi) begin
-        cos_r  <= eng_cos;
-        sin_r  <= eng_sin;
-        zout_r <= eng_zo;
-        done_r <= 1'b1;
-      end
-      if (issue_spi) spi_pend <= 1'b0;
-
-      if (reg_wr)
-        case (reg_addr)
-          7'h00: begin
-            if (reg_wdata[0]) begin
-              spi_pend <= 1'b1;
-              done_r   <= 1'b0;
-            end
-            mode_r <= reg_wdata[1];
-          end
-          7'h02: angle_r[7:0]    <= reg_wdata;
-          7'h03: angle_r[15:8]   <= reg_wdata;
-          7'h04: xin_r[7:0]      <= reg_wdata;
-          7'h05: xin_r[15:8]     <= reg_wdata;
-          7'h06: yin_r[7:0]      <= reg_wdata;
-          7'h07: yin_r[15:8]     <= reg_wdata;
-          7'h10: dds_inc_r[7:0]  <= reg_wdata;
-          7'h11: dds_inc_r[15:8] <= reg_wdata;
-          7'h12: dds_en_r        <= reg_wdata[0];
-          default: ;
-        endcase
-    end
-
-  always_comb
-    case (reg_addr)
-      7'h00:   reg_rdata = {6'b0, mode_r, 1'b0};
-      7'h01:   reg_rdata = {7'b0, done_r};
-      7'h02:   reg_rdata = angle_r[7:0];
-      7'h03:   reg_rdata = angle_r[15:8];
-      7'h04:   reg_rdata = xin_r[7:0];
-      7'h05:   reg_rdata = xin_r[15:8];
-      7'h06:   reg_rdata = yin_r[7:0];
-      7'h07:   reg_rdata = yin_r[15:8];
-      7'h08:   reg_rdata = cos_r[7:0];
-      7'h09:   reg_rdata = cos_r[15:8];
-      7'h0A:   reg_rdata = sin_r[7:0];
-      7'h0B:   reg_rdata = sin_r[15:8];
-      7'h0C:   reg_rdata = zout_r[7:0];
-      7'h0D:   reg_rdata = zout_r[15:8];
-      7'h10:   reg_rdata = dds_inc_r[7:0];
-      7'h11:   reg_rdata = dds_inc_r[15:8];
-      7'h12:   reg_rdata = {7'b0, dds_en_r};
-      7'h7F:   reg_rdata = 8'hC1;
-      default: reg_rdata = 8'h00;
-    endcase
 
   // ---------------------------------------------------------------- outputs
   // first-order sigma-delta: the carry-out's density IS the sample value
@@ -193,13 +96,17 @@ module tt_um_joonatanalanampa_cordic (
       sd_cos <= {1'b0, sd_cos[15:0]} + {1'b0, cos_s ^ 16'h8000};
     end
 
-  // uo[7] carries the sine stream because the TT Audio Pmod is hardwired
-  // to listen there; uo[6] = cosine (a chained second Pmod's audio pin)
+  // heartbeat: bit 23 of a free counter = ~1.5 Hz blink at 25 MHz
+  logic [23:0] beat;
+  always_ff @(posedge clk)
+    if (rst) beat <= 24'd0;
+    else     beat <= beat + 24'd1;
+
   assign uo_out = {sd_sin[16],
                    sd_cos[16],
                    sin_s[15:11] ^ 5'b10000,   // LED bar, offset binary
-                   done_r};
+                   beat[23]};
 
-  wire _unused = &{ena, uio_in[7:1], 1'b0};
+  wire _unused = &{ena, ui_in[7], uio_in, 1'b0};
 
 endmodule

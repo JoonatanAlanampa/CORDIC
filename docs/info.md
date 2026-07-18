@@ -1,43 +1,43 @@
 ## How it works
 
-CORDIC-1 is a **trigonometry coprocessor and standalone sine generator**
-built around a 16-iteration serial CORDIC engine — sin, cos, atan2 and
-vector magnitude from nothing but shifts and adds (no multipliers). The
-engine carries 2 guard bits on all three accumulators and is verified
-**exhaustively**: all 65,536 input angles against reference math, worst
-error 5 LSB of Q1.15.
+CORDIC-1 is a **standalone sine and cosine generator** in one TinyTapeout
+tile — a self-playing instrument with no bus, no host, and no software.
+Select it, release reset, and it plays.
 
-**Coprocessor mode** (SPI mode 0, 16-bit transactions: command byte
-`{rw, addr}` + data byte): write a 16-bit angle (65536 = full turn) into
-ANGLE, set CTRL.start, and ~350 clocks later (bit-serial engine) read sin/cos from the result
-registers. Vector mode (CTRL.mode=1) takes a point (XIN, YIN) and returns
-atan2 in ZOUT and K*magnitude (K=1.6468) in COS. Vector mode covers the RIGHT half-plane (xi >= 0); fold the left half in software (negate x,y; add 0x8000 to the result). For full atan2 accuracy
-present inputs scaled so max(|x|,|y|) >= 8192. ID register 0x7F reads
-0xC1.
+Inside: a **bit-serial CORDIC engine** (x, y, z as 20-bit shift registers
+circulating LSB-first through three 1-bit full adders — sin and cos from
+nothing but shifts and adds, ~350 clocks per conversion, ~72k
+conversions/s at 25 MHz). The engine is verified **exhaustively**: all
+65,536 input angles against reference math, worst error 5 LSB of Q1.15.
+A 20-bit DDS phase accumulator sweeps it continuously, and two
+first-order sigma-delta modulators stream the results: **sine on uo[7]**
+(exactly where the TT Audio Pmod listens) and **quadrature cosine on
+uo[6]**. An RC low-pass (1 kOhm + 100 nF) per pin — or the Audio Pmod —
+turns each into a clean analog wave.
 
-**Standalone mode** (strap ui[7] high — no host of any kind): a 20-bit
-DDS phase accumulator sweeps the engine continuously (~72k
-conversions/s) and first-order sigma-delta modulators stream the sine on
-uo[7] (exactly where the TT Audio Pmod listens) and quadrature cosine on
-uo[6]. An external RC low-pass (1k +
-100 nF works) turns each into a clean analog sine wave. ui[6:0] set the
-frequency, ~70 Hz per step (measured 4.375 kHz at code 64, 25 MHz clock)
-— flip DIP switches, get a precision function generator. The same DDS is
-software-controllable over SPI (DDS_INC, ~1.1 Hz/LSB; DDS_CTRL.0 enable).
+Frequency is set live by ui[6:0]:
 
-uo[5:1] show the live sine level as an offset-binary bar — at low
-frequencies the LEDs visibly breathe.
+| code | output |
+|---|---|
+| 0 (power-on default) | **440 Hz — concert A wake-up tone** |
+| 1..126 | code x ~70 Hz (~70 Hz .. ~8.8 kHz) |
+| 127 | ~2 Hz breathe mode: the LED bar visibly waves |
+
+uo[5:1] show the live sine level as an offset-binary LED bar, and uo[0]
+blinks a ~1.5 Hz **heartbeat** — proof of life visible with nothing
+attached at all.
 
 ## How to test
 
-Read register 0x7F over SPI — it must return 0xC1. Write ANGLE=0x2000
-(45 deg), CTRL=0x01, then read SIN/COS: both ~23170 (0.707). Or skip SPI
-entirely: tie ui[7] high with a frequency code on ui[6:0], put an RC
-filter on uo[7], and watch a sine on a scope (or listen to it — audio
-range). The uo[5:1] level bar breathes at the output frequency.
+Power on, select the design, release reset: the heartbeat LED blinks and
+the level bar shimmers immediately — with headphones on the Audio Pmod
+you hear concert A. Scope the RC-filtered uo[7]: a 440 Hz sine. Change
+ui[6:0]: the pitch follows, ~70 Hz per step. Set all ones (127): the LED
+bar breathes a slow visible wave. Scope uo[7] vs uo[6] in XY mode: a
+circle — sin^2 + cos^2 = 1, drawn by the silicon.
 
 ## External hardware
 
-None required (LED bar works bare). For analog output: an RC low-pass on
-uo[7]/uo[6] — or the Tiny Tapeout audio Pmod. Any SPI master (demo board
-RP2040, Arduino) for coprocessor mode.
+None required (heartbeat + LED bar work bare). For analog output: an RC
+low-pass on uo[7]/uo[6], or the Tiny Tapeout Audio Pmod (it listens on
+uo[7]). DIP switches or the demo board's inputs for ui[6:0].

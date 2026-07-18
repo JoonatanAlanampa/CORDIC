@@ -12,7 +12,6 @@ SRC_DIR = TEST_DIR.parent / "src"
 SOURCES = [
     SRC_DIR / "project.sv",
     SRC_DIR / "cordic.sv",
-    SRC_DIR / "spi_slave.sv",
     TEST_DIR / "tb.v",
 ]
 
