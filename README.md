@@ -1,8 +1,19 @@
 ![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 
-# Tiny Tapeout Verilog Project Template
+# CORDIC-1 — a one-tile sine generator that wakes up singing
 
-- [Read the documentation for project](docs/info.md)
+Standalone sine-generator instrument chip for TinyTapeout Sky130: a
+bit-serial CORDIC engine (verified exhaustively — all 65,536 angles, worst
+error 5 LSB) swept by a DDS, streaming sigma-delta sine on the Audio Pmod
+pin. Powers up playing 440 Hz concert A; 127 switch-selectable frequencies
+(~70 Hz–8.8 kHz), a ~2 Hz LED breathe mode, a phase-locked square sync,
+and a heartbeat pilot light. 921 cells, one tile, no bus, no host, no
+software.
+
+- **[Interactive die viewer (2D/3D)](https://joonatanalanampa.github.io/CORDIC/)** — pan around the actual GDS layout
+- [Datasheet](docs/info.md) — pinout, frequency table, bring-up
+- [FPGA harness](fpga/) — verify the exact ASIC RTL on a ULX3S 85F
+  (`powershell -File fpga\synth.ps1`, then `openFPGALoader -b ulx3s fpga\build\cordic_ulx3s.bit`)
 
 ## What is Tiny Tapeout?
 
