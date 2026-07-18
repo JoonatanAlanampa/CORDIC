@@ -5,7 +5,7 @@ built around a 16-iteration serial CORDIC engine — sin, cos, atan2 and
 vector magnitude from nothing but shifts and adds (no multipliers). The
 engine carries 2 guard bits on all three accumulators and is verified
 **exhaustively**: all 65,536 input angles against reference math, worst
-error 4 LSB of Q1.15.
+error 5 LSB of Q1.15.
 
 **Coprocessor mode** (SPI mode 0, 16-bit transactions: command byte
 `{rw, addr}` + data byte): write a 16-bit angle (65536 = full turn) into
