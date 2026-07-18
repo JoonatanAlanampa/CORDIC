@@ -1,8 +1,9 @@
 /*
- * CORDIC-1: standalone sine/cosine generator — one TinyTapeout tile.
+ * CORDIC-1: standalone sine generator — one TinyTapeout tile.
  *
  * A bit-serial CORDIC engine swept by a 20-bit DDS phase accumulator,
- * streaming quadrature sigma-delta on two pins. Pure instrument: no bus,
+ * streaming sigma-delta sine on one pin (plus a phase-locked square
+ * sync on another). Pure instrument: no bus,
  * no host, no configuration beyond the frequency pins. Select the design,
  * release reset, and it plays.
  *

@@ -1,6 +1,6 @@
 ## How it works
 
-CORDIC-1 is a **standalone sine and cosine generator** in one TinyTapeout
+CORDIC-1 is a **standalone sine generator** in one TinyTapeout
 tile — a self-playing instrument with no bus, no host, and no software.
 Select it, release reset, and it plays.
 

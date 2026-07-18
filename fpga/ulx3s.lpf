@@ -48,7 +48,7 @@ IOBUF PORT "led[5]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "led[6]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 IOBUF PORT "led[7]" PULLMODE=NONE IO_TYPE=LVCMOS33 DRIVE=4;
 
-# 3.5mm audio jack, 4-bit R2R DAC: left = sine, right = cosine
+# 3.5mm audio jack, 4-bit R2R DAC: left = sine, right = square sync
 LOCATE COMP "audio_l[3]" SITE "B3";
 LOCATE COMP "audio_l[2]" SITE "C3";
 LOCATE COMP "audio_l[1]" SITE "D3";

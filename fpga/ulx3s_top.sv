@@ -11,7 +11,7 @@
 //                 code 127 (hold up) = ~2 Hz LED breathe mode
 //   led[7:0]   -> uo: sine level bar on led[5:1], heartbeat on led[0],
 //                 led[7]/led[6] carry the sigma-deltas (~half bright)
-//   audio jack -> left = sine, right = cosine (board 4-bit DAC)
+//   audio jack -> left = sine, right = square sync (board 4-bit DAC)
 //
 // Copyright (c) 2026 Joonatan Alanampa
 // SPDX-License-Identifier: Apache-2.0
