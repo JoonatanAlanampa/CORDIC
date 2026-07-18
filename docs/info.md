@@ -41,6 +41,16 @@ ui[6:0]: the pitch follows, ~70 Hz per step. Set all ones (127): the LED
 bar breathes a slow visible wave. Trigger the scope from the
 uo[6] square: the sine stands rock still — they are phase-locked.
 
+## PPA
+
+From the hardening run's signoff reports (SkyWater 130 nm, nominal
+corner tt/25C/1.80V): **area** 1 tile (167x108 um, ~0.018 mm^2), 921
+standard cells at 74.0% utilization. **Performance**: ships at 25 MHz,
+timing-clean at 50 MHz across all corners, nominal Fmax ~115 MHz; ~72k
+sine conversions/s with a formally proven <=358-cycle latency bound.
+**Power**: ~0.56 mW estimated at 25 MHz (OpenSTA statistical estimate;
+leakage only 7.8 nW — essentially all power is useful switching).
+
 ## External hardware
 
 None required (heartbeat + LED bar work bare). For analog output: an RC

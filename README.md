@@ -16,6 +16,18 @@ software.
   control path (never hangs, exact schedule, single done per op), on top
   of the exhaustive 65,536-angle simulation
 - **Prebuilt ULX3S bitstream**: [`fpga/build/cordic_ulx3s.bit`](fpga/build/cordic_ulx3s.bit) — flash and listen, no toolchain needed
+
+## PPA (from signoff, SkyWater 130 nm, nominal tt/25C/1.80V)
+
+| | |
+|---|---|
+| **Power** | ~0.56 mW at the 25 MHz ship clock (OpenSTA estimate at 50 MHz: 1.12 mW, 47% clock tree; leakage 7.8 nW — 0.0007%). A coin cell could hum concert A for ~50 days. |
+| **Performance** | Ships at 25 MHz; signoff-clean at 50 MHz across all corners (incl. ss/100C/1.60V); nominal Fmax ~115 MHz. ~72k sine conversions/s, latency 338–359 cycles (formally proven <= 358). |
+| **Area** | 1 tile = 167x108 um ~ 0.018 mm^2; 921 standard cells (~240 flops), 74.0% utilization. |
+
+The bit-serial trade in one line: ~20x less throughput than the parallel
+engine (irrelevant — the 72 kHz DDS is fully fed) for 2.6x less area
+(194% -> 74% of a tile) and 4.6x clock margin from 1-bit-adder paths.
 - [FPGA harness](fpga/) — verify the exact ASIC RTL on a ULX3S 85F
   (`powershell -File fpga\synth.ps1`, then `openFPGALoader -b ulx3s fpga\build\cordic_ulx3s.bit`)
 
