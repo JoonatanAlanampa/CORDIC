@@ -1,0 +1,18 @@
+# SymbiYosys: formal verification of the bit-serial CORDIC control path.
+#   sby -f cordic.sby prove    # k-induction proof of the schedule invariants
+#   sby -f cordic.sby cover    # deep BMC witnesses: full ops on both paths
+[options]
+multiclock off
+mode cover
+depth 400
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -formal -sv cordic.sv f_top.sv
+prep -top f_top
+
+[files]
+../src/cordic.sv
+f_top.sv

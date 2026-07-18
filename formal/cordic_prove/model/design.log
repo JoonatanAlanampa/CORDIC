@@ -1,0 +1,508 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2026  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.67+40 (git sha1 45ea2b8d6-dirty, Release, GNU /usr/bin/x86_64-w64-mingw32-g++ 13.2.1)
+
+-- Executing script file `../model/design.ys' --
+
+1. Executing Verilog-2005 frontend: cordic.sv
+Parsing formal SystemVerilog input from `cordic.sv' to AST representation.
+Generating RTLIL representation for module `\cordic'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: f_top.sv
+Parsing formal SystemVerilog input from `f_top.sv' to AST representation.
+Generating RTLIL representation for module `\f_top'.
+Successfully finished Verilog frontend.
+
+3. Executing PREP pass.
+
+3.1. Executing HIERARCHY pass (managing design hierarchy).
+
+3.1.1. Analyzing design hierarchy..
+Top module:  \f_top
+Used module:     \cordic
+
+3.1.2. Analyzing design hierarchy..
+Top module:  \f_top
+Used module:     \cordic
+Removed 0 unused modules.
+Module f_top directly or indirectly contains formal properties -> setting "keep" attribute.
+Module cordic directly or indirectly contains formal properties -> setting "keep" attribute.
+
+3.2. Executing PROC pass (convert processes to netlists).
+
+3.2.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+3.2.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 1 switch rules as full_case in process $proc$cordic.sv:99$113 in module cordic.
+Marked 1 switch rules as full_case in process $proc$cordic.sv:207$69 in module cordic.
+Marked 8 switch rules as full_case in process $proc$cordic.sv:114$52 in module cordic.
+Removed a total of 0 dead cases.
+
+3.2.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 4 redundant assignments.
+Promoted 15 assignments to connections.
+
+3.2.4. Executing PROC_INIT pass (extract init attributes).
+Found init rule in `\f_top.$proc$f_top.sv:14$128'.
+  Set init value: \f_rst = 1'1
+Found init rule in `\cordic.$proc$cordic.sv:212$126'.
+  Set init value: \f_st_q = 2'00
+Found init rule in `\cordic.$proc$cordic.sv:206$125'.
+  Set init value: \f_ctr = 9'000000000
+Found init rule in `\cordic.$proc$cordic.sv:202$124'.
+  Set init value: \f_valid = 1'0
+
+3.2.5. Executing PROC_ARST pass (detect async resets in processes).
+
+3.2.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 1 switch.
+<suppressed ~18 debug messages>
+
+3.2.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\f_top.$proc$f_top.sv:14$128'.
+Creating decoders for process `\f_top.$proc$f_top.sv:15$127'.
+Creating decoders for process `\cordic.$proc$cordic.sv:212$126'.
+Creating decoders for process `\cordic.$proc$cordic.sv:206$125'.
+Creating decoders for process `\cordic.$proc$cordic.sv:202$124'.
+Creating decoders for process `\cordic.$proc$cordic.sv:99$113'.
+     1/1: $1\atan_bit$func$cordic.sv:99$3.v[17:0]$120
+Creating decoders for process `\cordic.$proc$cordic.sv:230$107'.
+Creating decoders for process `\cordic.$proc$cordic.sv:215$74'.
+     1/9: $assert$cordic.sv:226$104_EN
+     2/9: $assert$cordic.sv:225$102_EN
+     3/9: $assert$cordic.sv:224$100_EN
+     4/9: $assert$cordic.sv:222$97_EN
+     5/9: $assert$cordic.sv:221$92_EN
+     6/9: $assert$cordic.sv:220$88_EN
+     7/9: $assert$cordic.sv:219$83_EN
+     8/9: $assert$cordic.sv:217$80_EN
+     9/9: $assert$cordic.sv:216$78_EN
+Creating decoders for process `\cordic.$proc$cordic.sv:213$73'.
+Creating decoders for process `\cordic.$proc$cordic.sv:207$69'.
+     1/1: $0\f_ctr[8:0]
+Creating decoders for process `\cordic.$proc$cordic.sv:203$68'.
+Creating decoders for process `\cordic.$proc$cordic.sv:114$52'.
+     1/18: $0\done[0:0]
+     2/18: $0\xsgn[0:0]
+     3/18: $0\ysgn[0:0]
+     4/18: $0\cz[0:0]
+     5/18: $0\cy[0:0]
+     6/18: $0\cx[0:0]
+     7/18: $0\x[19:0]
+     8/18: $0\k[4:0]
+     9/18: $0\ccw[0:0]
+    10/18: $0\fold_q[0:0]
+    11/18: $0\mode_q[0:0]
+    12/18: $0\st[1:0]
+    13/18: $0\zo[15:0]
+    14/18: $0\sin_o[15:0]
+    15/18: $0\cos_o[15:0]
+    16/18: $0\z[19:0]
+    17/18: $0\y[19:0]
+    18/18: $0\i[3:0]
+
+3.2.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\cordic.\atan_bit$func$cordic.sv:99$1.$result' from process `\cordic.$proc$cordic.sv:99$113'.
+
+3.2.9. Executing PROC_DFF pass (convert process syncs to FFs).
+Creating register for signal `\f_top.\f_rst' using process `\f_top.$proc$f_top.sv:15$127'.
+  created $dff cell `$procdff$409' with positive edge clock.
+Creating register for signal `\cordic.$past$cordic.sv:226$2$0' using process `\cordic.$proc$cordic.sv:215$74'.
+  created $dff cell `$procdff$410' with positive edge clock.
+Creating register for signal `\cordic.\f_st_q' using process `\cordic.$proc$cordic.sv:213$73'.
+  created $dff cell `$procdff$411' with positive edge clock.
+Creating register for signal `\cordic.\f_ctr' using process `\cordic.$proc$cordic.sv:207$69'.
+  created $dff cell `$procdff$412' with positive edge clock.
+Creating register for signal `\cordic.\f_valid' using process `\cordic.$proc$cordic.sv:203$68'.
+  created $dff cell `$procdff$413' with positive edge clock.
+Creating register for signal `\cordic.\i' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$414' with positive edge clock.
+Creating register for signal `\cordic.\y' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$415' with positive edge clock.
+Creating register for signal `\cordic.\z' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$416' with positive edge clock.
+Creating register for signal `\cordic.\done' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$417' with positive edge clock.
+Creating register for signal `\cordic.\cos_o' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$418' with positive edge clock.
+Creating register for signal `\cordic.\sin_o' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$419' with positive edge clock.
+Creating register for signal `\cordic.\zo' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$420' with positive edge clock.
+Creating register for signal `\cordic.\st' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$421' with positive edge clock.
+Creating register for signal `\cordic.\mode_q' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$422' with positive edge clock.
+Creating register for signal `\cordic.\fold_q' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$423' with positive edge clock.
+Creating register for signal `\cordic.\ccw' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$424' with positive edge clock.
+Creating register for signal `\cordic.\k' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$425' with positive edge clock.
+Creating register for signal `\cordic.\x' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$426' with positive edge clock.
+Creating register for signal `\cordic.\cx' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$427' with positive edge clock.
+Creating register for signal `\cordic.\cy' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$428' with positive edge clock.
+Creating register for signal `\cordic.\cz' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$429' with positive edge clock.
+Creating register for signal `\cordic.\ysgn' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$430' with positive edge clock.
+Creating register for signal `\cordic.\xsgn' using process `\cordic.$proc$cordic.sv:114$52'.
+  created $dff cell `$procdff$431' with positive edge clock.
+
+3.2.10. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+3.2.11. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Removing empty process `f_top.$proc$f_top.sv:14$128'.
+Removing empty process `f_top.$proc$f_top.sv:15$127'.
+Removing empty process `cordic.$proc$cordic.sv:212$126'.
+Removing empty process `cordic.$proc$cordic.sv:206$125'.
+Removing empty process `cordic.$proc$cordic.sv:202$124'.
+Found and cleaned up 1 empty switch in `\cordic.$proc$cordic.sv:99$113'.
+Removing empty process `cordic.$proc$cordic.sv:99$113'.
+Removing empty process `cordic.$proc$cordic.sv:230$107'.
+Found and cleaned up 7 empty switches in `\cordic.$proc$cordic.sv:215$74'.
+Removing empty process `cordic.$proc$cordic.sv:215$74'.
+Removing empty process `cordic.$proc$cordic.sv:213$73'.
+Found and cleaned up 1 empty switch in `\cordic.$proc$cordic.sv:207$69'.
+Removing empty process `cordic.$proc$cordic.sv:207$69'.
+Removing empty process `cordic.$proc$cordic.sv:203$68'.
+Found and cleaned up 10 empty switches in `\cordic.$proc$cordic.sv:114$52'.
+Removing empty process `cordic.$proc$cordic.sv:114$52'.
+Cleaned up 19 empty switches.
+
+3.2.12. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+<suppressed ~19 debug messages>
+
+3.3. Executing FUTURE pass.
+
+3.4. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+
+3.5. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \f_top..
+Finding unused cells or wires in module \cordic..
+Removed 0 unused cells and 140 unused wires.
+<suppressed ~2 debug messages>
+
+3.6. Executing CHECK pass (checking for obvious problems).
+Checking module f_top...
+Checking module cordic...
+Found and reported 0 problems.
+
+3.7. Executing OPT pass (performing simple optimizations).
+
+3.7.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+
+3.7.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\f_top'.
+Computing hashes of 2 cells of `\f_top'.
+Finding duplicate cells in `\f_top'.
+Finding identical cells in module `\cordic'.
+Computing hashes of 258 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+Computing hashes of 210 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+<suppressed ~144 debug messages>
+Removed a total of 48 cells.
+
+3.7.3. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \f_top..
+  Creating internal representation of mux trees.
+  No muxes found in this module.
+Running muxtree optimizer on module \cordic..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~134 debug messages>
+
+3.7.4. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \f_top.
+  Optimizing cells in module \cordic.
+    New ctrl vector for $pmux cell $procmux$348: $auto$opt_reduce.cc:137:opt_pmux$435
+    New ctrl vector for $pmux cell $procmux$340: $auto$opt_reduce.cc:137:opt_pmux$437
+    New ctrl vector for $pmux cell $procmux$332: $auto$opt_reduce.cc:137:opt_pmux$439
+    New ctrl vector for $pmux cell $procmux$168: $auto$opt_reduce.cc:137:opt_pmux$441
+  Optimizing cells in module \cordic.
+Performed a total of 4 changes.
+
+3.7.5. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\f_top'.
+Computing hashes of 2 cells of `\f_top'.
+Finding duplicate cells in `\f_top'.
+Finding identical cells in module `\cordic'.
+Computing hashes of 214 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+Computing hashes of 207 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+Computing hashes of 205 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+<suppressed ~27 debug messages>
+Removed a total of 9 cells.
+
+3.7.6. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \f_top..
+Finding unused cells or wires in module \cordic..
+Removed 0 unused cells and 57 unused wires.
+<suppressed ~1 debug messages>
+
+3.7.7. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+
+3.7.8. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.7.9. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \f_top..
+  Creating internal representation of mux trees.
+  No muxes found in this module.
+Running muxtree optimizer on module \cordic..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~127 debug messages>
+
+3.7.10. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \f_top.
+  Optimizing cells in module \cordic.
+    New ctrl vector for $pmux cell $procmux$261: { $auto$opt_reduce.cc:137:opt_pmux$443 $eq$cordic.sv:208$70_Y }
+  Optimizing cells in module \cordic.
+Performed a total of 1 changes.
+
+3.7.11. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\f_top'.
+Computing hashes of 2 cells of `\f_top'.
+Finding duplicate cells in `\f_top'.
+Finding identical cells in module `\cordic'.
+Computing hashes of 206 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+Removed a total of 0 cells.
+
+3.7.12. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \f_top..
+Finding unused cells or wires in module \cordic..
+
+3.7.13. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+
+3.7.14. Rerunning OPT passes. (Maybe there is more to do..)
+
+3.7.15. Executing OPT_MUXTREE pass (detect dead branches in mux trees).
+Running muxtree optimizer on module \f_top..
+  Creating internal representation of mux trees.
+  No muxes found in this module.
+Running muxtree optimizer on module \cordic..
+  Creating internal representation of mux trees.
+  Evaluating internal representation of mux trees.
+  Analyzing evaluation results.
+Removed 0 multiplexer ports.
+<suppressed ~125 debug messages>
+
+3.7.16. Executing OPT_REDUCE pass (consolidate $*mux and $reduce_* inputs).
+  Optimizing cells in module \f_top.
+  Optimizing cells in module \cordic.
+Performed a total of 0 changes.
+
+3.7.17. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\f_top'.
+Computing hashes of 2 cells of `\f_top'.
+Finding duplicate cells in `\f_top'.
+Finding identical cells in module `\cordic'.
+Computing hashes of 206 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+Removed a total of 0 cells.
+
+3.7.18. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \f_top..
+Finding unused cells or wires in module \cordic..
+
+3.7.19. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+
+3.7.20. Finished fast OPT passes. (There is nothing left to do.)
+
+3.8. Executing WREDUCE pass (reducing word size of cells).
+Removed top 28 address bits (of 32) from memory init port cordic.$auto$mem.cc:351:emit$132 ($auto$proc_rom.cc:155:do_switch$130).
+Removed top 1 bits (of 6) from port A of cell cordic.$le$cordic.sv:92$7 ($le).
+Removed top 1 bits (of 6) from port A of cell cordic.$sub$cordic.sv:156$55 ($sub).
+Removed top 2 bits (of 6) from port B of cell cordic.$sub$cordic.sv:156$55 ($sub).
+Removed top 1 bits (of 6) from port A of cell cordic.$eq$cordic.sv:156$56 ($eq).
+Removed top 1 bits (of 2) from mux cell cordic.$ternary$cordic.sv:163$61 ($mux).
+Removed top 3 bits (of 4) from port B of cell cordic.$add$cordic.sv:165$62 ($add).
+Removed top 4 bits (of 5) from port B of cell cordic.$add$cordic.sv:182$66 ($add).
+Removed top 15 bits (of 16) from port B of cell cordic.$add$cordic.sv:188$67 ($add).
+Removed top 8 bits (of 9) from port B of cell cordic.$add$cordic.sv:209$72 ($add).
+Removed top 5 bits (of 9) from port A of cell cordic.$mul$cordic.sv:219$84 ($mul).
+Removed top 4 bits (of 9) from port B of cell cordic.$mul$cordic.sv:219$84 ($mul).
+Removed top 4 bits (of 9) from port B of cell cordic.$add$cordic.sv:219$85 ($add).
+Removed top 4 bits (of 9) from port B of cell cordic.$add$cordic.sv:220$89 ($add).
+Removed top 4 bits (of 5) from port B of cell cordic.$sub$cordic.sv:99$119 ($sub).
+Removed top 1 bits (of 2) from port B of cell cordic.$procmux$402_CMP0 ($eq).
+Removed top 1 bits (of 2) from wire cordic.$ternary$cordic.sv:163$61_Y.
+
+3.9. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \f_top..
+Finding unused cells or wires in module \cordic..
+Removed 0 unused cells and 1 unused wires.
+<suppressed ~1 debug messages>
+
+3.10. Executing MEMORY_COLLECT pass (generating $mem cells).
+
+3.11. Executing OPT pass (performing simple optimizations).
+
+3.11.1. Executing OPT_EXPR pass (perform const folding).
+Optimizing module f_top.
+Optimizing module cordic.
+
+3.11.2. Executing OPT_MERGE pass (detect identical cells).
+Finding identical cells in module `\f_top'.
+Computing hashes of 2 cells of `\f_top'.
+Finding duplicate cells in `\f_top'.
+Finding identical cells in module `\cordic'.
+Computing hashes of 205 cells of `\cordic'.
+Finding duplicate cells in `\cordic'.
+Removed a total of 0 cells.
+
+3.11.3. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \f_top..
+Finding unused cells or wires in module \cordic..
+
+3.11.4. Finished fast OPT passes.
+
+3.12. Executing SORT pass.
+
+3.13. Printing statistics.
+
+=== cordic ===
+
+        +----------Local Count, excluding submodules.
+        | 
+      204 wires
+      970 wire bits
+       52 public wires
+      270 public wire bits
+       11 ports
+      101 port bits
+      205 cells
+        6   $add
+       11   $and
+       11   $check
+       22   $dff
+       11   $eq
+        3   $le
+        5   $logic_and
+        7   $logic_not
+        3   $logic_or
+        1   $lt
+        1   $mem_v2
+        1   $mul
+       85   $mux
+        8   $not
+        6   $or
+        8   $pmux
+        2   $reduce_or
+        3   $shiftx
+        2   $sub
+        9   $xor
+
+=== f_top ===
+
+        +----------Local Count, excluding submodules.
+        | 
+        7 wires
+       52 wire bits
+        7 public wires
+       52 public wire bits
+        6 ports
+       51 port bits
+        1 cells
+        1   $dff
+        1 submodules
+        1   cordic
+
+=== design hierarchy ===
+
+        +----------Count including submodules.
+        | 
+      206 f_top
+      205 cordic
+
+        +----------Count including submodules.
+        | 
+      211 wires
+     1022 wire bits
+       59 public wires
+      322 public wire bits
+       17 ports
+      152 port bits
+        - memories
+        - memory bits
+        - processes
+      206 cells
+        6   $add
+       11   $and
+       11   $check
+       23   $dff
+       11   $eq
+        3   $le
+        5   $logic_and
+        7   $logic_not
+        3   $logic_or
+        1   $lt
+        1   $mem_v2
+        1   $mul
+       85   $mux
+        8   $not
+        6   $or
+        8   $pmux
+        2   $reduce_or
+        3   $shiftx
+        2   $sub
+        9   $xor
+        1 submodules
+        1   cordic
+
+3.14. Executing CHECK pass (checking for obvious problems).
+Checking module cordic...
+Checking module f_top...
+Found and reported 0 problems.
+
+4. Executing HIERARCHY pass (managing design hierarchy).
+Attribute `top' found on module `f_top'. Setting top module to f_top.
+
+4.1. Analyzing design hierarchy..
+Top module:  \f_top
+Used module:     \cordic
+
+4.2. Analyzing design hierarchy..
+Top module:  \f_top
+Used module:     \cordic
+Removed 0 unused modules.
+Module cordic directly or indirectly contains formal properties -> setting "keep" attribute.
+Module f_top directly or indirectly contains formal properties -> setting "keep" attribute.
+
+5. Executing jny backend.
+
+6. Executing RTLIL backend.
+Output filename: ../model/design.il
+
+End of script. Logfile hash: ae081b956a
+Yosys 0.67+40 (git sha1 45ea2b8d6-dirty, Release, GNU /usr/bin/x86_64-w64-mingw32-g++ 13.2.1)
+Time spent: 3% 7x opt_expr (0 sec), 3% 6x opt_clean (0 sec), ...

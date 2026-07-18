@@ -1,0 +1,8 @@
+# running in cordic_cover/src/
+read_verilog -formal -sv cordic.sv f_top.sv
+prep -top f_top
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

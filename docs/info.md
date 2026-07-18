@@ -9,6 +9,10 @@ circulating LSB-first through three 1-bit full adders — sin and cos from
 nothing but shifts and adds, ~350 clocks per conversion, ~72k
 conversions/s at 25 MHz). The engine is verified **exhaustively**: all
 65,536 input angles against reference math, worst error 5 LSB of Q1.15.
+Its control path is additionally **formally proven** (SymbiYosys
+k-induction, `formal/`): from any reachable state under any input
+sequence, the schedule invariants hold, an operation always completes
+within 358 cycles, and `done` pulses exactly once per operation.
 A 20-bit DDS phase accumulator sweeps it continuously, and a
 first-order sigma-delta modulator streams the result: **sine on uo[7]** (exactly where the
 TT Audio Pmod listens). An RC low-pass (1 kOhm + 100 nF) — or the Audio

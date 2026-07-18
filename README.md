@@ -12,6 +12,10 @@ software.
 
 - **[Interactive die viewer (2D/3D)](https://joonatanalanampa.github.io/CORDIC/)** — pan around the actual GDS layout
 - [Datasheet](docs/info.md) — pinout, frequency table, bring-up
+- [Formal proof](formal/) — SymbiYosys k-induction over the engine's
+  control path (never hangs, exact schedule, single done per op), on top
+  of the exhaustive 65,536-angle simulation
+- **Prebuilt ULX3S bitstream**: [`fpga/build/cordic_ulx3s.bit`](fpga/build/cordic_ulx3s.bit) — flash and listen, no toolchain needed
 - [FPGA harness](fpga/) — verify the exact ASIC RTL on a ULX3S 85F
   (`powershell -File fpga\synth.ps1`, then `openFPGALoader -b ulx3s fpga\build\cordic_ulx3s.bit`)
 

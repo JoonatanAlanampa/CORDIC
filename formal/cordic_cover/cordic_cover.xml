@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-07-18T23:25:16" hostname="Pelikone" package="cordic" id="0" name="cover" tests="11" errors="0" failures="0" time="0" skipped="9">
+<properties>
+<property name="os" value="Windows"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="cover" name="build execution" time="0">
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:216.5-216.24" time="0" type="ASSERT" location="cordic.sv:216.5-216.24" id="_witness_.check_assert_cordic_sv_216_78">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:217.5-217.29" time="0" type="ASSERT" location="cordic.sv:217.5-217.29" id="_witness_.check_assert_cordic_sv_217_80">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:219.23-219.62" time="0" type="ASSERT" location="cordic.sv:219.23-219.62" id="_witness_.check_assert_cordic_sv_219_83">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:220.23-220.55" time="0" type="ASSERT" location="cordic.sv:220.23-220.55" id="_witness_.check_assert_cordic_sv_220_88">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:221.23-221.66" time="0" type="ASSERT" location="cordic.sv:221.23-221.66" id="_witness_.check_assert_cordic_sv_221_92">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:222.23-222.53" time="0" type="ASSERT" location="cordic.sv:222.23-222.53" id="_witness_.check_assert_cordic_sv_222_97">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:224.15-224.39" time="0" type="ASSERT" location="cordic.sv:224.15-224.39" id="_witness_.check_assert_cordic_sv_224_100">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:225.15-225.36" time="0" type="ASSERT" location="cordic.sv:225.15-225.36" id="_witness_.check_assert_cordic_sv_225_102">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property ASSERT in f_top/dut at cordic.sv:226.5-226.36" time="0" type="ASSERT" location="cordic.sv:226.5-226.36" id="_witness_.check_assert_cordic_sv_226_104">
+<skipped />
+</testcase>
+<testcase classname="cover" name="Property COVER in f_top/dut at cordic.sv:231.5-231.28" time="0" type="COVER" location="cordic.sv:231.5-231.28" id="_witness_.check_cover_cordic_sv_231_108" tracefile="engine_0\trace0.vcd">
+</testcase>
+<testcase classname="cover" name="Property COVER in f_top/dut at cordic.sv:232.5-232.27" time="0" type="COVER" location="cordic.sv:232.5-232.27" id="_witness_.check_cover_cordic_sv_232_111" tracefile="engine_0\trace1.vcd">
+</testcase>
+<system-out>SBY 23:25:15 [cordic_cover] Removing directory 'C:\Users\Joonatan Alanampa\Documents\ASIC\tt-cordic\formal\cordic_cover'.
+SBY 23:25:15 [cordic_cover] Copy 'C:\Users\Joonatan Alanampa\Documents\ASIC\tt-cordic\formal\..\src\cordic.sv' to 'C:\Users\Joonatan Alanampa\Documents\ASIC\tt-cordic\formal\cordic_cover\src\cordic.sv'.
+SBY 23:25:15 [cordic_cover] Copy 'C:\Users\Joonatan Alanampa\Documents\ASIC\tt-cordic\formal\f_top.sv' to 'C:\Users\Joonatan Alanampa\Documents\ASIC\tt-cordic\formal\cordic_cover\src\f_top.sv'.
+SBY 23:25:15 [cordic_cover] engine_0: smtbmc boolector
+SBY 23:25:15 [cordic_cover] base: starting process &quot;cd cordic_cover/src&amp; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 23:25:15 [cordic_cover] base: finished (returncode=0)
+SBY 23:25:15 [cordic_cover] prep: starting process &quot;cd cordic_cover/model&amp; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 23:25:15 [cordic_cover] prep: finished (returncode=0)
+SBY 23:25:15 [cordic_cover] smt2: starting process &quot;cd cordic_cover/model&amp; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 23:25:15 [cordic_cover] smt2: finished (returncode=0)
+SBY 23:25:15 [cordic_cover] engine_0: starting process &quot;cd cordic_cover&amp; yosys-smtbmc -s boolector --presat --unroll -c --noprogress -t 400  --append 0 --dump-vcd engine_0/trace%.vcd --dump-yw engine_0/trace%.yw --dump-vlogtb engine_0/trace%_tb.v --dump-smtc engine_0/trace%.smtc model/design_smt2.smt2&quot;
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Solver: boolector
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Checking cover reachability in step 0..
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Checking cover reachability in step 1..
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Reached cover statement in step 1 at f_top.dut: cordic.sv:231.5-231.28 (_witness_.check_cover_cordic_sv_231_108)
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace0.vcd
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace0_tb.v
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace0.smtc
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace0.yw
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Checking cover reachability in step 1..
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Reached cover statement in step 1 at f_top.dut: cordic.sv:232.5-232.27 (_witness_.check_cover_cordic_sv_232_111)
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace1.vcd
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace1_tb.v
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace1.smtc
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace1.yw
+SBY 23:25:15 [cordic_cover] engine_0: ##   0:00:00  Status: passed
+SBY 23:25:16 [cordic_cover] engine_0: finished (returncode=0)
+SBY 23:25:16 [cordic_cover] engine_0: Status returned by engine: pass
+SBY 23:25:16 [cordic_cover] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 23:25:16 [cordic_cover] summary: Elapsed process time unvailable on Windows
+SBY 23:25:16 [cordic_cover] summary: engine_0 (smtbmc boolector) returned pass
+SBY 23:25:16 [cordic_cover] summary: cover trace: cordic_cover\engine_0\trace0.vcd
+SBY 23:25:16 [cordic_cover] summary:   reached cover statement f_top.dut._witness_.check_cover_cordic_sv_231_108 at cordic.sv:231.5-231.28 step 1
+SBY 23:25:16 [cordic_cover] summary: cover trace: cordic_cover\engine_0\trace1.vcd
+SBY 23:25:16 [cordic_cover] summary:   reached cover statement f_top.dut._witness_.check_cover_cordic_sv_232_111 at cordic.sv:232.5-232.27 step 1
+SBY 23:25:16 [cordic_cover] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>
