@@ -122,13 +122,13 @@ async def test_standalone_dds(dut):
     dut.ui_in.value = (1 << STANDALONE) | code
     await ClockCycles(dut.clk, 2000)      # let the DDS spin up
 
-    # measure via sign flips of the LED bar MSB (uo[7] = sign of sine)
+    # measure via sign flips of the LED bar MSB (uo[5] = sign of sine)
     flips = 0
-    prev = (int(dut.uo_out.value) >> 7) & 1
+    prev = (int(dut.uo_out.value) >> 5) & 1
     n = 60000
     for _ in range(n):
         await RisingEdge(dut.clk)
-        cur = (int(dut.uo_out.value) >> 7) & 1
+        cur = (int(dut.uo_out.value) >> 5) & 1
         if cur != prev:
             flips += 1
         prev = cur
@@ -141,10 +141,11 @@ async def test_standalone_dds(dut):
                   f_meas, f_exp)
 
     # sigma-delta density sanity: over full periods, sine averages to ~50%
+    # (uo[7]: the TT Audio Pmod listens there)
     ones = 0
     m = 46000                             # ~10 periods
     for _ in range(m):
         await RisingEdge(dut.clk)
-        ones += int(dut.uo_out.value) & 1
+        ones += (int(dut.uo_out.value) >> 7) & 1
     duty = ones / m
     assert 0.45 < duty < 0.55, duty

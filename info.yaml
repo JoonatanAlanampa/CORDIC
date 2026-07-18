@@ -35,14 +35,14 @@ pinout:
   ui[7]: "STANDALONE strap"
 
   # Outputs
-  uo[0]: "SINE sigma-delta"
-  uo[1]: "COSINE sigma-delta"
-  uo[2]: "DONE"
-  uo[3]: "LEVEL0"
-  uo[4]: "LEVEL1"
-  uo[5]: "LEVEL2"
-  uo[6]: "LEVEL3"
-  uo[7]: "LEVEL4"
+  uo[0]: "DONE"
+  uo[1]: "LEVEL0"
+  uo[2]: "LEVEL1"
+  uo[3]: "LEVEL2"
+  uo[4]: "LEVEL3"
+  uo[5]: "LEVEL4"
+  uo[6]: "COSINE sigma-delta"
+  uo[7]: "SINE sigma-delta (Audio Pmod)"
 
   # Bidirectional pins
   uio[0]: "SPI MISO"

@@ -17,8 +17,9 @@
  *   ui[0] SPI SCLK   ui[7]   STANDALONE strap
  *   ui[1] SPI MOSI   ui[6:0] standalone frequency (when strapped)
  *   ui[2] SPI CS_n   uio[0]  SPI MISO
- *   uo[0] sine sigma-delta    uo[2]   done flag
- *   uo[1] cosine sigma-delta  uo[7:3] sine level bar (offset binary)
+ *   uo[7] sine sigma-delta (TT Audio Pmod position)
+ *   uo[6] cosine sigma-delta (chained second Audio Pmod position)
+ *   uo[5:1] sine level bar (offset binary)   uo[0] done flag
  *
  * Register map (7-bit addr, 8-bit data; ID at 0x7F reads 0xC1):
  *   0x00 CTRL   W: bit0 start, bit1 mode (0 rotate / 1 vector)
@@ -190,10 +191,12 @@ module tt_um_joonatanalanampa_cordic (
       sd_cos <= {1'b0, sd_cos[15:0]} + {1'b0, cos_s ^ 16'h8000};
     end
 
-  assign uo_out = {sin_s[15:11] ^ 5'b10000,   // LED bar, offset binary
-                   done_r,
+  // uo[7] carries the sine stream because the TT Audio Pmod is hardwired
+  // to listen there; uo[6] = cosine (a chained second Pmod's audio pin)
+  assign uo_out = {sd_sin[16],
                    sd_cos[16],
-                   sd_sin[16]};
+                   sin_s[15:11] ^ 5'b10000,   // LED bar, offset binary
+                   done_r};
 
   wire _unused = &{ena, uio_in[7:1], 1'b0};
 
