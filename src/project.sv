@@ -87,21 +87,23 @@ module tt_um_joonatanalanampa_cordic (
   );
 
   // ---------------------------------------------------------------- DDS
-  logic [23:0] phase;
+  // bit-serial engine: ~72k conversions/s at 25 MHz (one per ~347 clk).
+  // f = inc / 2^20 * 72k: standalone ~72 Hz per ui step, SPI ~1.1 Hz/LSB.
+  logic [19:0] phase;
   wire         dds_en  = standalone | dds_en_r;
-  wire [23:0]  dds_inc = standalone ? {7'b0, ui_in[6:0], 10'b0}
-                                    : {dds_inc_r, 8'b0};
+  wire [19:0]  dds_inc = standalone ? {3'b0, ui_in[6:0], 10'b0}
+                                    : {dds_inc_r, 4'b0};
 
   // issue: a pending SPI op wins; otherwise free-run the DDS
   wire issue_spi = spi_pend && !eng_busy;
   wire issue_dds = dds_en && !eng_busy && !spi_pend;
   assign eng_start = issue_spi || issue_dds;
   assign eng_mode  = issue_spi ? mode_r : 1'b0;
-  assign eng_zi    = issue_spi ? angle_r : phase[23:8];
+  assign eng_zi    = issue_spi ? angle_r : phase[19:4];
 
   always_ff @(posedge clk)
     if (rst) begin
-      eng_busy <= 1'b0; cur_spi <= 1'b0; phase <= 24'd0;
+      eng_busy <= 1'b0; cur_spi <= 1'b0; phase <= 20'd0;
     end else begin
       if (eng_start) begin
         eng_busy <= 1'b1;

@@ -9,21 +9,21 @@ error 4 LSB of Q1.15.
 
 **Coprocessor mode** (SPI mode 0, 16-bit transactions: command byte
 `{rw, addr}` + data byte): write a 16-bit angle (65536 = full turn) into
-ANGLE, set CTRL.start, and 18 clocks later read sin/cos from the result
+ANGLE, set CTRL.start, and ~350 clocks later (bit-serial engine) read sin/cos from the result
 registers. Vector mode (CTRL.mode=1) takes a point (XIN, YIN) and returns
-atan2 in ZOUT and K*magnitude (K=1.6468) in COS. For full atan2 accuracy
+atan2 in ZOUT and K*magnitude (K=1.6468) in COS. Vector mode covers the RIGHT half-plane (xi >= 0); fold the left half in software (negate x,y; add 0x8000 to the result). For full atan2 accuracy
 present inputs scaled so max(|x|,|y|) >= 8192. ID register 0x7F reads
 0xC1.
 
-**Standalone mode** (strap ui[7] high — no host of any kind): a 24-bit
-DDS phase accumulator sweeps the engine continuously (~1.4 M
+**Standalone mode** (strap ui[7] high — no host of any kind): a 20-bit
+DDS phase accumulator sweeps the engine continuously (~72k
 conversions/s) and first-order sigma-delta modulators stream the sine on
 uo[7] (exactly where the TT Audio Pmod listens) and quadrature cosine on
 uo[6]. An external RC low-pass (1k +
 100 nF works) turns each into a clean analog sine wave. ui[6:0] set the
-frequency, ~85 Hz per step (measured 5.21 kHz at code 64, 25 MHz clock)
+frequency, ~70 Hz per step (measured 4.375 kHz at code 64, 25 MHz clock)
 — flip DIP switches, get a precision function generator. The same DDS is
-software-controllable over SPI (DDS_INC, ~21 Hz/LSB; DDS_CTRL.0 enable).
+software-controllable over SPI (DDS_INC, ~1.1 Hz/LSB; DDS_CTRL.0 enable).
 
 uo[5:1] show the live sine level as an offset-binary bar — at low
 frequencies the LEDs visibly breathe.

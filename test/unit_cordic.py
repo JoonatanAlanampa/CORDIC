@@ -24,7 +24,7 @@ async def op(dut, mode, zi=0, xi=0, yi=0):
     dut.start.value = 1
     await RisingEdge(dut.clk)
     dut.start.value = 0
-    for _ in range(20):
+    for _ in range(450):                  # bit-serial: ~340-360 cycles/op
         await RisingEdge(dut.clk)
         if dut.done.value == 1:
             break
@@ -66,10 +66,12 @@ async def test_vector_spots(dut):
     await ClockCycles(dut.clk, 4)
     dut.rst.value = 0
 
+    # bit-serial engine: vector mode covers the RIGHT half-plane (xi >= 0);
+    # callers fold the left half in software (negate x,y; add half a turn)
     K = 1.646760258
-    pts = [(16000, 0), (0, 16000), (-16000, 0), (0, -16000),
-           (12000, 12000), (-8000, 13856), (-13856, -8000), (9600, -12800),
-           (12000, 5000), (-9000, 12000), (18000, 3000), (-15000, -9000)]
+    pts = [(16000, 0), (0, 16000), (0, -16000),
+           (12000, 12000), (9600, -12800), (12000, 5000),
+           (18000, 3000), (11000, -11000), (8192, 14000)]
     for xin, yin in pts:
         mag, _, ang = await op(dut, 1, xi=xin, yi=yin)
         ea = round(math.atan2(yin, xin) / (2 * math.pi) * 65536)

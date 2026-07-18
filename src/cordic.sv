@@ -1,16 +1,29 @@
-// cordic.sv — 16-iteration serial CORDIC engine (shift-add only).
+// cordic.sv — BIT-SERIAL 16-iteration CORDIC engine, built to fit a
+// single TinyTapeout tile (the parallel version measured 194% of one).
 //
-// Angle format: 16-bit signed, full turn = 65536 (16384 = 90 deg).
-// Rotate mode (mode=0): input angle in zi -> cos_o = cos, sin_o = sin,
-//   as signed Q1.15 (32766 ~= +1.0; +/-2 LSB accuracy). Gain K pre-folded.
-// Vector mode (mode=1): input point (xi, yi) -> zo = atan2(yi, xi),
-//   cos_o = magnitude * 1.6468 (the CORDIC gain; caller divides/documents).
+// x, y, z are 20-bit shift registers circulating LSB-first through three
+// 1-bit full adders. The classic serial trick: because operand and
+// result shift in lockstep, "the other register >> i" is simply a FIXED
+// TAP at bit position i — the parallel version's two 20-bit barrel
+// shifters become two 16:1 bit-muxes. Once the tap index runs past the
+// old MSB, a sign latch (captured as that MSB crosses position i)
+// supplies the arithmetic extension.
 //
-// Angles/points outside the right half-plane are folded by a 180-degree
-// pre-rotation (angle ^ 0x8000 / point negation) and un-folded at capture.
+// Schedule: each iteration = 1 decision cycle (k=0: steering direction
+// and subtract-carries latched from fully settled registers) + W=20
+// shift cycles. 16 iterations + optional 21-cycle serial-negate pass
+// (un-applies the 180-degree fold) + capture ~ 340-360 clocks/op:
+// ~72k ops/s at 25 MHz — plenty for an audio DDS.
 //
-// start is a 1-cycle pulse; 18 cycles later done pulses with results
-// valid and held until the next operation.
+// Interface identical to the parallel version except latency, plus:
+// vector mode accepts the RIGHT half-plane only (xi >= 0); the caller
+// folds the left half-plane in software (negate x,y; add half a turn to
+// the result angle) — hardware vector folding would cost a second
+// negate path for no coprocessor value.
+//
+// Angle format: 16-bit signed, full turn = 65536. Layout of the 20-bit
+// registers: [19:18] sign head, [17:2] value, [1:0] guard/fraction bits
+// (the atan ROM is scaled x4 to match).
 //
 // Copyright (c) 2026 Joonatan Alanampa
 // SPDX-License-Identifier: Apache-2.0
@@ -22,7 +35,7 @@ module cordic (
     input  logic               rst,
 
     input  logic               start,
-    input  logic               mode,      // 0 = rotate, 1 = vector
+    input  logic               mode,      // 0 = rotate, 1 = vector (xi >= 0)
     input  logic signed [15:0] zi,        // rotate: target angle
     input  logic signed [15:0] xi,        // vector inputs
     input  logic signed [15:0] yi,
@@ -30,100 +43,153 @@ module cordic (
     output logic               done,      // 1-cycle pulse
     output logic signed [15:0] cos_o,     // rotate: cos; vector: K*magnitude
     output logic signed [15:0] sin_o,     // rotate: sin
-    output logic signed [15:0] zo         // vector: atan2
+    output logic signed [15:0] zo         // vector: atan2 (right half-plane)
 );
 
-  // atan(2^-i), with 2 fraction bits of extra precision (65536 = 90 deg
-  // internally; the coarse 1x table cost ~11 LSB of sin bias — measured)
-  function automatic logic signed [17:0] atan_tab(input logic [3:0] i);
+  localparam W = 20;
+
+  // atan(2^-i) * 4, bit b of entry i (serial ROM)
+  function automatic logic atan_bit(input logic [3:0] i, input logic [4:0] b);
+    logic [17:0] v;
     case (i)
-      4'd0:  atan_tab = 18'sd32768;
-      4'd1:  atan_tab = 18'sd19344;
-      4'd2:  atan_tab = 18'sd10221;
-      4'd3:  atan_tab = 18'sd5188;
-      4'd4:  atan_tab = 18'sd2604;
-      4'd5:  atan_tab = 18'sd1303;
-      4'd6:  atan_tab = 18'sd652;
-      4'd7:  atan_tab = 18'sd326;
-      4'd8:  atan_tab = 18'sd163;
-      4'd9:  atan_tab = 18'sd81;
-      4'd10: atan_tab = 18'sd41;
-      4'd11: atan_tab = 18'sd20;
-      4'd12: atan_tab = 18'sd10;
-      4'd13: atan_tab = 18'sd5;
-      4'd14: atan_tab = 18'sd3;
-      default: atan_tab = 18'sd1;
+      4'd0:  v = 18'd32768;
+      4'd1:  v = 18'd19344;
+      4'd2:  v = 18'd10221;
+      4'd3:  v = 18'd5188;
+      4'd4:  v = 18'd2604;
+      4'd5:  v = 18'd1303;
+      4'd6:  v = 18'd652;
+      4'd7:  v = 18'd326;
+      4'd8:  v = 18'd163;
+      4'd9:  v = 18'd81;
+      4'd10: v = 18'd41;
+      4'd11: v = 18'd20;
+      4'd12: v = 18'd10;
+      4'd13: v = 18'd5;
+      4'd14: v = 18'd3;
+      default: v = 18'd1;
     endcase
+    atan_bit = (b < 5'd18) ? v[b] : 1'b0;
   endfunction
 
-  // x, y and z all carry 2 extra fraction bits vs the 16-bit interface:
-  // the coarse versions cost ~11 (z) and ~9 (x/y truncation) LSB of error,
-  // measured by the exhaustive sweep.
-  localparam signed [19:0] X0 = 20'sd79584;   // (K*32767 - margin) << 2
+  localparam [W-1:0] X0 = 20'd79584;      // (K*32767 - margin) << 2
 
-  logic               run, cap, mode_q, fold_q;
-  logic [3:0]         i;
-  logic signed [19:0] x, y;
-  logic signed [18:0] z;
+  localparam [1:0] S_IDLE = 2'd0, S_ITER = 2'd1, S_NEG = 2'd2, S_CAP = 2'd3;
 
-  wire signed [19:0] xs = x >>> i;
-  wire signed [19:0] ys = y >>> i;
+  logic [1:0]   st;
+  logic         mode_q, fold_q, ccw;
+  logic [3:0]   i;
+  logic [4:0]   k;                        // 0 = decision, 1..W = shifts
+  logic [W-1:0] x, y, z;
+  logic         cx, cy, cz;
+  logic         ysgn, xsgn;
 
-  // rotate: steer z toward 0; vector: steer y toward 0
-  wire ccw = mode_q ? (y < 0) : (z >= 0);
+  // steering, valid on the k=0 cycle (registers fully settled)
+  wire ccw_now = mode_q ? y[W-1] : ~z[W-1];
+
+  // taps: during shift cycle k (1-based) the old bit (k-1)+i of the other
+  // register sits at fixed position i, until the old MSB passes (k > W-i)
+  wire tap_live = ({1'b0, k} <= 6'(W) - {2'b0, i});
+  wire ytap = tap_live ? y[i] : ysgn;
+  wire xtap = tap_live ? x[i] : xsgn;
+
+  // lane operand bits: ccw = {x -= y>>i, y += x>>i, z -= atan}
+  wire xb = ccw ? ~ytap : ytap;
+  wire yb = ccw ? xtap : ~xtap;
+  wire ab = atan_bit(i, k - 5'd1);
+  wire zb = ccw ? ~ab : ab;
+
+  wire xs_ = x[0] ^ xb ^ cx;  wire xco = (x[0] & xb) | (x[0] & cx) | (xb & cx);
+  wire ys_ = y[0] ^ yb ^ cy;  wire yco = (y[0] & yb) | (y[0] & cy) | (yb & cy);
+  wire zs_ = z[0] ^ zb ^ cz;  wire zco = (z[0] & zb) | (z[0] & cz) | (zb & cz);
+
+  // serial negate pass: r <= 0 - r = ~r + 1
+  wire xn = ~x[0] ^ cx;  wire xnco = ~x[0] & cx;
+  wire yn = ~y[0] ^ cy;  wire ynco = ~y[0] & cy;
 
   wire signed [15:0] zfold = zi ^ 16'h8000;
-  wire signed [16:0] zr = (z + 19'sd2) >>> 2;   // round back to 16-bit units
-  wire signed [17:0] xr = (x + 20'sd2) >>> 2;
-  wire signed [17:0] yr = (y + 20'sd2) >>> 2;
+  wire do_fold = !mode && (zi[15] ^ zi[14]);
+  wire signed [15:0] zinit = do_fold ? zfold : zi;
 
   always_ff @(posedge clk)
     if (rst) begin
-      run <= 1'b0; cap <= 1'b0; done <= 1'b0;
-      mode_q <= 1'b0; fold_q <= 1'b0;
-      i <= 4'd0; x <= 20'sd0; y <= 20'sd0; z <= 19'sd0;
+      st <= S_IDLE; done <= 1'b0;
+      mode_q <= 1'b0; fold_q <= 1'b0; ccw <= 1'b0;
+      i <= 4'd0; k <= 5'd0;
+      x <= '0; y <= '0; z <= '0;
+      cx <= 1'b0; cy <= 1'b0; cz <= 1'b0;
+      ysgn <= 1'b0; xsgn <= 1'b0;
       cos_o <= 16'sd0; sin_o <= 16'sd0; zo <= 16'sd0;
     end else begin
       done <= 1'b0;
-      cap  <= 1'b0;
 
-      if (start) begin
-        mode_q <= mode;
-        i      <= 4'd0;
-        run    <= 1'b1;
-        if (mode) begin                    // vector: fold left half-plane
-          fold_q <= xi[15];
-          x <= xi[15] ? -{{2{xi[15]}}, xi, 2'b00} : {{2{xi[15]}}, xi, 2'b00};
-          y <= xi[15] ? -{{2{yi[15]}}, yi, 2'b00} : {{2{yi[15]}}, yi, 2'b00};
-          z <= 19'sd0;
-        end else begin                     // rotate: fold |angle| > 90 deg
-          fold_q <= zi[15] ^ zi[14];
-          x <= X0;
-          y <= 20'sd0;
-          z <= (zi[15] ^ zi[14]) ? {zfold[15], zfold, 2'b00}
-                                 : {zi[15], zi, 2'b00};
+      case (st)
+        S_IDLE:
+          if (start) begin
+            mode_q <= mode;
+            fold_q <= do_fold;
+            i <= 4'd0; k <= 5'd0;
+            if (mode) begin
+              x <= {{2{xi[15]}}, xi, 2'b00};
+              y <= {{2{yi[15]}}, yi, 2'b00};
+              z <= '0;
+            end else begin
+              x <= X0;
+              y <= '0;
+              z <= {{2{zinit[15]}}, zinit, 2'b00};
+            end
+            st <= S_ITER;
+          end
+
+        S_ITER:
+          if (k == 5'd0) begin             // decision cycle: no shift
+            ccw <= ccw_now;
+            cx  <= ccw_now;                // subtract lanes carry-in 1
+            cy  <= ~ccw_now;
+            cz  <= ccw_now;
+            k   <= 5'd1;
+          end else begin
+            x <= {xs_, x[W-1:1]};
+            y <= {ys_, y[W-1:1]};
+            z <= {zs_, z[W-1:1]};
+            cx <= xco; cy <= yco; cz <= zco;
+            if ({1'b0, k} == 6'(W) - {2'b0, i}) begin
+              ysgn <= y[i];                // old MSB is crossing tap i
+              xsgn <= x[i];
+            end
+            if (k == 5'(W)) begin
+              k <= 5'd0;
+              if (i == 4'd15)
+                st <= fold_q ? S_NEG : S_CAP;
+              else
+                i <= i + 4'd1;
+            end else
+              k <= k + 5'd1;
+          end
+
+        S_NEG:
+          if (k == 5'd0) begin
+            cx <= 1'b1; cy <= 1'b1;        // +1 of the two's complement
+            k  <= 5'd1;
+          end else begin
+            x <= {xn, x[W-1:1]};
+            y <= {yn, y[W-1:1]};
+            cx <= xnco; cy <= ynco;
+            if (k == 5'(W)) begin
+              k  <= 5'd0;
+              st <= S_CAP;
+            end else
+              k <= k + 5'd1;
+          end
+
+        default: begin                     // S_CAP
+          cos_o <= x[17:2];
+          sin_o <= y[17:2];
+          zo    <= z[17:2] + {15'b0, z[1]};
+          done  <= 1'b1;
+          st    <= S_IDLE;
         end
-      end else if (run) begin
-        if (ccw) begin
-          x <= x - ys;
-          y <= y + xs;
-          z <= z - atan_tab(i);
-        end else begin
-          x <= x + ys;
-          y <= y - xs;
-          z <= z + atan_tab(i);
-        end
-        i <= i + 4'd1;
-        if (i == 4'd15) begin
-          run <= 1'b0;
-          cap <= 1'b1;                     // final values land next cycle
-        end
-      end else if (cap) begin              // capture, applying the un-fold
-        cos_o <= (fold_q && !mode_q) ? -xr[15:0] : xr[15:0];
-        sin_o <= (fold_q && !mode_q) ? -yr[15:0] : yr[15:0];
-        zo    <= fold_q ? (zr[15:0] ^ 16'h8000) : zr[15:0];
-        done  <= 1'b1;
-      end
+      endcase
     end
 
 endmodule

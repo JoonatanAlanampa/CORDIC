@@ -117,10 +117,11 @@ async def test_standalone_dds(dut):
     cocotb.start_soon(Clock(dut.clk, 40, unit="ns").start())
     await reset(dut)
 
-    # strap standalone, freq code 64 -> f = 64*1024/2^24 * (25e6/18) ~ 5.43 kHz
+    # strap standalone, freq code 64. Bit-serial: ~349 clk/op average
+    # (338 + fold pass on half the circle) -> f = 64*1024/2^20 * 71.6k
     code = 64
     dut.ui_in.value = (1 << STANDALONE) | code
-    await ClockCycles(dut.clk, 2000)      # let the DDS spin up
+    await ClockCycles(dut.clk, 4000)      # let the DDS spin up
 
     # measure via sign flips of the LED bar MSB (uo[5] = sign of sine)
     flips = 0
@@ -135,7 +136,7 @@ async def test_standalone_dds(dut):
 
     t = n * 40e-9
     f_meas = flips / 2 / t
-    f_exp = code * 1024 / 2**24 * (25e6 / 18)
+    f_exp = code * 1024 / 2**20 * (25e6 / 349)
     assert abs(f_meas - f_exp) / f_exp < 0.1, (f_meas, f_exp)
     dut._log.info("standalone DDS: measured %.1f Hz, expected %.1f Hz",
                   f_meas, f_exp)
