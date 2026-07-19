@@ -16,3 +16,5 @@ fpga/build/
 formal/cordic_prove/
 formal/cordic_cover/
 formal/cordic/
+test/unit_log.txt
+test/unit_err.txt
