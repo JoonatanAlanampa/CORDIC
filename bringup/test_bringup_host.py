@@ -31,6 +31,17 @@ import types
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# Import the real firmware port class FIRST, while `time` is still CPython's:
+# microcotb does `from time import monotonic`, which the stubbed time module
+# installed below cannot provide. A set-but-unusable TT_FIRMWARE_SRC is a hard
+# error — a green run that quietly fell back to the stand-in would claim
+# firmware coverage it does not have.
+FW_SRC = os.environ.get("TT_FIRMWARE_SRC")
+REAL_IO = None
+if FW_SRC:
+    sys.path.insert(0, FW_SRC)
+    from microcotb.ports.io import IO as REAL_IO  # noqa: N811
+
 CLK_HZ = 25_000_000
 OPS_DIV = 359
 POLL_US = 40.0  # cost of one output-byte read, i.e. the polling sample rate
@@ -170,16 +181,9 @@ sys.modules["time"] = faketime
 
 
 # ------------------------------------------------------- fake ttboard package
-# Ports: the real microcotb IO class if TT_FIRMWARE_SRC is available, else a
-# stand-in with the same surface (int(port), port.value, port.value = x).
-FW_SRC = os.environ.get("TT_FIRMWARE_SRC")
-REAL_IO = None
-if FW_SRC:
-    sys.path.insert(0, FW_SRC)
-    try:
-        from microcotb.ports.io import IO as REAL_IO  # noqa: N811
-    except ImportError as e:
-        print("TT_FIRMWARE_SRC set but microcotb did not import: %s" % e)
+# Ports: the real microcotb IO class (imported at the top of this file) if
+# TT_FIRMWARE_SRC was given, else a stand-in with the same surface
+# (int(port), port.value, port.value = x).
 
 
 class FakeByteReg:

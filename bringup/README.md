@@ -84,7 +84,11 @@ Point `TT_FIRMWARE_SRC` at a `tt-micropython-firmware` checkout's
 port class instead of a stand-in, so the script's read/write idioms run
 against shipping firmware code. CI does this at a pinned commit
 (`f34d9f0`); bump that ref deliberately, since a diff there is exactly the
-API drift worth seeing.
+API drift worth seeing. If the variable is set but the import fails the test
+dies rather than falling back — the first version of this swallowed that
+error and reported a green run that had quietly used the stand-in, which is
+worse than no check at all. The `ports:` line at the top of the output says
+which class actually ran.
 
 ## Firmware compatibility
 
