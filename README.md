@@ -16,6 +16,9 @@ software.
   control path (never hangs, exact schedule, single done per op), on top
   of the exhaustive 65,536-angle simulation
 - **Prebuilt ULX3S bitstream**: [`fpga/build/cordic_ulx3s.bit`](fpga/build/cordic_ulx3s.bit) — flash and listen, no toolchain needed
+- [Silicon bring-up](bringup/) — MicroPython self-check for the TT demo
+  board RP2040, waiting for the chips (~mid-2027); it is tested today
+  against a virtual die, including dice it must reject
 - [FPGA harness](fpga/) — verify the exact ASIC RTL on a ULX3S 85F
   (`powershell -File fpga\synth.ps1`, then `openFPGALoader -b ulx3s fpga\build\cordic_ulx3s.bit`)
 

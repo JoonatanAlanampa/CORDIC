@@ -44,6 +44,12 @@ ui[6:0]: the pitch follows, ~68 Hz per step. Set all ones (127): the LED
 bar breathes a slow visible wave. Trigger the scope from the
 uo[6] square: the sine stands rock still — they are phase-locked.
 
+For an automated check, `bringup/cordic1_bringup.py` in the repo is a
+MicroPython self-test for the demo board's RP2040: it recovers the die's real
+clock from the heartbeat, sweeps eight frequency codes against the DDS model,
+and prints a PASS/FAIL table. `sweep_fmax()` in the same file raises the clock
+until the output stops tracking.
+
 ## PPA
 
 From the hardening run's signoff reports (SkyWater 130 nm, nominal
