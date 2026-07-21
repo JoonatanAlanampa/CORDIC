@@ -30,7 +30,8 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: TinyTapeout/tt-micropython-firmware
-          ref: f34d9f0
+          # full SHA required: actions/checkout cannot fetch an abbreviated one
+          ref: f34d9f0da5b0245de8bbd78e1cd3b3c4170408b9
           path: ttfw
           submodules: recursive
 
