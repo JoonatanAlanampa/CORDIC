@@ -9,10 +9,18 @@ demo board whose pins follow the CORDIC-1 pin model from src/project.sv, then
 runs the real script against it:
 
   * a GOOD die must pass every check;
-  * three broken dice (dead DDS, stuck level bar, rail-parked sigma-delta)
-    must each be caught — a bring-up script that cannot fail is worthless.
+  * four broken setups (dead DDS, stuck level bar, rail-parked sigma-delta,
+    and a DIP switch vetoing an input pin) must each be caught — a bring-up
+    script that cannot fail is worthless.
 
     python bringup/test_bringup_host.py
+
+If TT_FIRMWARE_SRC points at a checkout of tt-micropython-firmware's
+microcotb submodule (`.../microcotb/src`), the virtual board wires up the
+REAL microcotb IO port class instead of a stand-in, so the script's
+read/write idioms are exercised against shipping firmware code rather than
+against my idea of it. CI does this at a pinned commit; without the variable
+the test still runs, just against the stand-in.
 """
 
 import math
@@ -58,6 +66,15 @@ class Die:
         self.t_reset = 0.0
         self.fault = fault
         self._lcg = 12345
+        # a DIP switch physically holding ui_in[3] high: the firmware then
+        # refuses to drive that pin, so writes to it silently do not take
+        self.dip_mask = 0x08 if fault == "dip_stuck" else 0x00
+
+    def write_ui(self, v):
+        self.code = ((v & 0x7F) & ~self.dip_mask) | self.dip_mask
+
+    def read_ui(self):
+        return self.code
 
     # --- derived frequencies ------------------------------------------
     @property
@@ -153,9 +170,26 @@ sys.modules["time"] = faketime
 
 
 # ------------------------------------------------------- fake ttboard package
+# Ports: the real microcotb IO class if TT_FIRMWARE_SRC is available, else a
+# stand-in with the same surface (int(port), port.value, port.value = x).
+FW_SRC = os.environ.get("TT_FIRMWARE_SRC")
+REAL_IO = None
+if FW_SRC:
+    sys.path.insert(0, FW_SRC)
+    try:
+        from microcotb.ports.io import IO as REAL_IO  # noqa: N811
+    except ImportError as e:
+        print("TT_FIRMWARE_SRC set but microcotb did not import: %s" % e)
+
+
 class FakeByteReg:
+    """Stand-in for a microcotb IO port (used when the real one is absent)."""
+
     def __init__(self, setter=None, getter=None):
         self._set, self._get = setter, getter
+
+    def __int__(self):
+        return self._get()
 
     @property
     def value(self):
@@ -165,8 +199,24 @@ class FakeByteReg:
     def value(self, v):
         self._set(v)
 
-    def __getitem__(self, i):
-        return FakePin(i)
+
+def make_port(name, getter, setter=None):
+    if REAL_IO is not None:
+        return REAL_IO(name, 8, getter, setter)
+    return FakeByteReg(setter=setter, getter=getter)
+
+
+class FakeStandardPin:
+    """tt.pins.uo_outN — the firmware's StandardPin wraps a machine.Pin."""
+
+    def __init__(self, bit):
+        self.raw_pin = FakePin(bit)
+
+
+class FakePins:
+    def __init__(self):
+        for i in range(8):
+            setattr(self, "uo_out%d" % i, FakeStandardPin(i))
 
 
 class FakeProject:
@@ -188,11 +238,12 @@ class FakeDemoBoard:
     def __init__(self):
         self.shuttle = FakeShuttle()
         self.mode = None
-        self.ui_in = FakeByteReg(setter=self._set_ui, getter=lambda: DIE.code)
-        self.uo_out = FakeByteReg(getter=self._get_uo)
+        self.pins = FakePins()
+        self.ui_in = make_port("ui_in", lambda: DIE.read_ui(), self._set_ui)
+        self.uo_out = make_port("uo_out", self._get_uo)
 
     def _set_ui(self, v):
-        DIE.code = v & 0x7F
+        DIE.write_ui(int(v))
 
     def _get_uo(self):
         CLOCK.advance(POLL_US)
@@ -245,6 +296,8 @@ def run(fault=None):
 
 
 def main():
+    print("ports: %s" % ("REAL microcotb IO from %s" % FW_SRC if REAL_IO
+                         else "stand-in (set TT_FIRMWARE_SRC for the real one)"))
     print("=" * 70)
     print("GOOD DIE")
     print("=" * 70)
@@ -255,6 +308,7 @@ def main():
         ("dead_dds", "code"),
         ("stuck_bar", "level bar moves"),
         ("stuck_sd", "sigma-delta density"),
+        ("dip_stuck", "ui_in drive"),
     ):
         print("\n" + "=" * 70)
         print("FAULT INJECTED: %s" % fault)

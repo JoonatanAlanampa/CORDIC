@@ -32,6 +32,12 @@ sine is) or an RC low-pass (1 kΩ + 100 nF) into a scope.
 
 ## What each check proves
 
+0. **ui_in drive** — walks a one across the seven frequency pins and reads
+   them back. The firmware will not take over a `ui_in` pin that is already
+   reading HIGH (contention protection): it logs an error and leaves the pin
+   an input, so a DIP switch left on silently vetoes that bit and every
+   frequency below it comes out wrong for a reason that has nothing to do
+   with the die. This check names the offending pin instead.
 1. **heartbeat** — `uo[0]` is bit 23 of a free-running counter, so its
    frequency is `clk / 2**24`. Measuring it recovers the clock the die
    *really* sees; every later expectation is computed from that measured
@@ -69,17 +75,41 @@ python bringup/test_bringup_host.py
 This stubs `machine`, `time` and `ttboard.demoboard` with a virtual demo board
 whose pins follow the model in `src/project.sv` (including 1 µs pulse-timer
 quantisation and a finite polling rate), then runs the *unmodified* script
-against it. A good die must pass all 11 checks; a dead DDS, a stuck level bar
-and a rail-parked sigma-delta must each be caught — a bring-up script that
-cannot fail proves nothing. It runs in CI alongside the cocotb suite.
+against it. A good die must pass all 12 checks; a dead DDS, a stuck level bar,
+a rail-parked sigma-delta and a DIP switch vetoing an input pin must each be
+caught — a bring-up script that cannot fail proves nothing.
+
+Point `TT_FIRMWARE_SRC` at a `tt-micropython-firmware` checkout's
+`microcotb/src` and the virtual board wires up the **real** microcotb `IO`
+port class instead of a stand-in, so the script's read/write idioms run
+against shipping firmware code. CI does this at a pinned commit
+(`f34d9f0`); bump that ref deliberately, since a diff there is exactly the
+API drift worth seeing.
 
 ## Firmware compatibility
 
-The `tt-micropython-firmware` API has drifted between releases and this script
-has to still work in 2027, so every board call goes through the `Board` shim
-class: design selection, clock, reset, `ui_in`, `uo_out` and raw-`Pin` lookup
-each try the current names and fall back. **If a future firmware breaks this,
-`Board` is the only part that needs editing.** Two fallbacks worth knowing:
+Written against **tt-micropython-firmware v2.0.0** (`f34d9f0`, microcotb
+`81f2498`), with the API read rather than assumed. What that reading changed:
+
+- `tt.ui_in` / `tt.uo_out` are microcotb `IO` ports, not ints — read with
+  `int(port)`, write with `port.value = x`. `tt.ui_in = x` also works, because
+  `DemoBoard.__setattr__` forwards it to the port.
+- `port[i]` returns a sampled **Logic bit** (LSB-indexed), *not* a pin. An
+  earlier draft of this script used `tt.uo_out[6]` as a `machine.Pin` for
+  `time_pulse_us` — it would have failed on the bench. Raw pins live at
+  `tt.pins.uo_out<N>.raw_pin`.
+- `clock_project_PWM()` retunes the RP2040 **system clock** to reach the
+  requested frequency and settles for a nearby one if it cannot — vindicating
+  the decision to derive everything from the measured heartbeat. (The RP2040's
+  microsecond timer runs off the reference clock, not the system clock, so
+  `time.ticks_us` stays honest across that retune.)
+- Design lookup goes `shuttle.has()` / `shuttle.get()` first, then attribute
+  access, then `find()`.
+
+The API has still drifted between releases and the chips land ~mid-2027, so
+every board call goes through the `Board` shim and falls back. **If a future
+firmware breaks this, `Board` is the only part that needs editing.** Two
+fallbacks worth knowing:
 
 - If the board cannot be put into `ASIC_RP_CONTROL` the script says so and
   keeps going — set the input DIP switches by hand and the frequency sweep

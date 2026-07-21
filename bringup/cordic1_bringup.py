@@ -66,9 +66,21 @@ def expected_hz(code, clk_hz):
 
 
 # ------------------------------------------------------- demo-board API shim
-# The tt-micropython-firmware API has drifted between releases and the chips
-# land ~mid-2027, so every board call goes through a probe here. If a future
-# firmware renames something, this is the only section that needs touching.
+# Written against tt-micropython-firmware v2.0.0 (repo commit f34d9f0,
+# microcotb 81f2498) — see bringup/README.md for what was verified there. The
+# API has drifted between releases and the chips land ~mid-2027, so every board
+# call still probes and falls back. If a future firmware renames something,
+# this is the only section that needs touching.
+#
+# Firmware facts this shim depends on:
+#   * DemoBoard.get() is the singleton accessor; a second DemoBoard() raises.
+#   * tt.ui_in / tt.uo_out are microcotb IO ports, not ints: read with int(),
+#     write with .value. tt.ui_in = x also works (DemoBoard.__setattr__
+#     forwards to the port). port[i] is a Logic BIT, LSB-indexed — NOT a pin.
+#   * Raw machine.Pin objects live at tt.pins.uo_out<N>.raw_pin.
+#   * clock_project_PWM() retunes the RP2040 system clock to hit the request
+#     and silently settles for a nearby frequency — which is why every
+#     expectation here is computed from the measured heartbeat instead.
 
 
 class Board:
@@ -89,7 +101,14 @@ class Board:
         return self
 
     def _take_control(self):
-        """Drive ui_in from the RP2040 rather than from the DIP switches."""
+        """Drive ui_in from the RP2040 rather than from the DIP switches.
+
+        Contention guard in the firmware: entering ASIC_RP_CONTROL leaves any
+        ui_in pin that currently reads HIGH as an *input* — it logs an error
+        and carries on. So a DIP switch left on physically vetoes that bit and
+        every later write to it silently does nothing; check_ui_drive() below
+        is what turns that into a readable message instead of a mystery.
+        """
         try:
             from ttboard.mode import RPMode
 
@@ -101,7 +120,14 @@ class Board:
     # -- design selection -------------------------------------------------
     def select(self, name=DESIGN):
         shuttle = self.tt.shuttle
-        proj = getattr(shuttle, name, None)
+        proj = None
+        try:
+            if shuttle.has(name):
+                proj = shuttle.get(name)
+        except AttributeError:
+            pass
+        if proj is None:
+            proj = getattr(shuttle, name, None)  # ProjectMux.__getattr__
         if proj is None and hasattr(shuttle, "find"):
             hits = shuttle.find(name)
             proj = hits[0] if hits else None
@@ -131,38 +157,48 @@ class Board:
 
     # -- pins ---------------------------------------------------------------
     def set_ui(self, value):
+        """Write ui_in and return what the pins actually read back."""
         try:
             self.tt.ui_in.value = value
         except AttributeError:
             self.tt.input_byte = value
+        return self.get_ui()
+
+    def get_ui(self):
+        try:
+            return int(self.tt.ui_in)
+        except (TypeError, AttributeError):
+            try:
+                return int(self.tt.ui_in.value)
+            except AttributeError:
+                return int(self.tt.input_byte)
 
     def get_uo(self):
         try:
-            return int(self.tt.uo_out.value)
-        except AttributeError:
-            return int(self.tt.output_byte)
+            return int(self.tt.uo_out)  # IO.__int__ -> reads the port
+        except (TypeError, AttributeError):
+            try:
+                return int(self.tt.uo_out.value)
+            except AttributeError:
+                return int(self.tt.output_byte)
 
     def uo_pin(self, index):
         """A raw machine.Pin for uo[index], or None if it cannot be resolved.
 
-        time_pulse_us() needs a real Pin; without one we fall back to polling
-        the output byte, which is accurate enough only for slow signals.
+        time_pulse_us() needs a real Pin. NOTE tt.uo_out[index] is *not* one —
+        the ports are microcotb IO objects, so indexing returns a sampled
+        Logic bit. The pin objects live in tt.pins.
         """
-        cand = None
-        try:
-            cand = self.tt.uo_out[index]
-        except Exception:  # noqa: BLE001
-            pins = getattr(self.tt, "pins", None)
-            if pins is not None:
-                cand = getattr(pins, "uo_out%d" % index, None)
+        pins = getattr(self.tt, "pins", None)
+        cand = getattr(pins, "uo_out%d" % index, None) if pins is not None else None
         if cand is None:
             return None
-        if Pin is not None and isinstance(cand, Pin):
-            return cand
-        raw = getattr(cand, "raw_pin", None)
+        raw = getattr(cand, "raw_pin", None)  # StandardPin wraps machine.Pin
         if raw is not None:
             return raw
-        return cand if hasattr(cand, "value") else None
+        if Pin is not None and isinstance(cand, Pin):
+            return cand
+        return None
 
 
 # ---------------------------------------------------------------- measurement
@@ -252,6 +288,30 @@ def check_close(name, got, want, tol, unit="Hz"):
     )
 
 
+def check_ui_drive(board):
+    """Can the RP2040 actually drive all seven frequency pins?
+
+    The firmware refuses to take over a ui_in pin that is already reading
+    HIGH (contention protection) — a DIP switch left on silently vetoes that
+    bit, and every frequency below would then be wrong for a reason that has
+    nothing to do with the die. Walk a one across the pins and read back.
+    """
+    stuck = 0
+    for bit in range(7):
+        want = 1 << bit
+        got = board.set_ui(want)
+        if got is not None and (got & 0x7F) != want:
+            stuck |= (got & 0x7F) ^ want
+    board.set_ui(0)
+    return check(
+        "ui_in drive",
+        stuck == 0,
+        "all 7 code pins follow" if not stuck else
+        "pins %s will not follow — DIP switch left on? (mask 0x%02X)"
+        % ([b for b in range(7) if stuck >> b & 1], stuck),
+    )
+
+
 def check_heartbeat(board):
     """Recover the die's real clock from uo[0]. Returns clk_hz or None."""
     f = measure_byte_hz(board, BIT_HEARTBEAT, window_ms=3000)
@@ -328,6 +388,7 @@ def main(clk_hz=CLK_HZ):
     log("selected, clock requested %.3f MHz, reset released" % (clk_hz / 1e6))
 
     log("\n1. proof of life")
+    check_ui_drive(board)  # before anything is blamed on the die
     board.set_ui(0)  # wake-up default: untouched pins = concert A
     measured_clk = check_heartbeat(board)
     clk = measured_clk or clk_hz
