@@ -79,6 +79,12 @@ against it. A good die must pass all 12 checks; a dead DDS, a stuck level bar,
 a rail-parked sigma-delta and a DIP switch vetoing an input pin must each be
 caught — a bring-up script that cannot fail proves nothing.
 
+It also drives the paths `main()` never reaches: a firmware with no `tt.pins`
+(the polling fallback — the branch most likely to matter in 2027, and the one
+nothing else exercises), `demo_scale()`, and `sweep_fmax()` against a virtual
+die rigged to stop tracking above 42 MHz, which it must report rather than
+run off the end of the range.
+
 Point `TT_FIRMWARE_SRC` at a `tt-micropython-firmware` checkout's
 `microcotb/src` and the virtual board wires up the **real** microcotb `IO`
 port class instead of a stand-in, so the script's read/write idioms run
@@ -119,5 +125,8 @@ fallbacks worth knowing:
   keeps going — set the input DIP switches by hand and the frequency sweep
   still reads out, it just cannot change codes itself.
 - If no raw `machine.Pin` can be resolved for `uo[6]`, measurement falls back
-  to polling the output byte. That is accurate for the heartbeat and the low
-  codes; expect the top codes (~8.6 kHz) to be under-sampled.
+  to polling the output byte. The script then measures how fast it can
+  actually read the port and **skips** the codes above roughly a tenth of
+  that rate, printing them as `[SKIP]` and listing them under `NOT VERIFIED`
+  in the summary. Expect the top codes (~8.6 kHz) to land there: an aliased
+  reading dressed up as a pass would be worse than an admitted gap.

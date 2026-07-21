@@ -254,6 +254,20 @@ def measure_byte_hz(board, bit, window_ms, settle_ms=0):
     return (edges - 1) / 2.0 / span
 
 
+def measure_poll_rate(board, n=500):
+    """Output-byte reads per second — how fast this firmware can sample.
+
+    Sets the ceiling on what the polling fallback can honestly measure, so
+    the sweep can say which codes it is skipping instead of reporting a
+    confidently aliased number.
+    """
+    t0 = time.ticks_us()
+    for _ in range(n):
+        board.get_uo()
+    dt = time.ticks_diff(time.ticks_us(), t0)
+    return n / (dt / 1e6) if dt > 0 else 0.0
+
+
 def sample_bytes(board, n):
     out = []
     for _ in range(n):
@@ -264,6 +278,11 @@ def sample_bytes(board, n):
 # ------------------------------------------------------------------- checks
 
 _results = []
+_skipped = []
+
+# an edge must be sampled at least this many times per period for the polling
+# fallback to be trusted not to miss transitions
+POLL_SAMPLES_PER_PERIOD = 10
 
 
 def log(msg):
@@ -274,6 +293,12 @@ def check(name, ok, detail=""):
     _results.append((name, bool(ok), detail))
     log("  [%s] %-26s %s" % ("PASS" if ok else "FAIL", name, detail))
     return ok
+
+
+def skip(name, why):
+    """Record a check we cannot honestly make. Never counts as a pass."""
+    _skipped.append((name, why))
+    log("  [SKIP] %-26s %s" % (name, why))
 
 
 def check_close(name, got, want, tol, unit="Hz"):
@@ -326,12 +351,24 @@ def check_heartbeat(board):
 
 def check_frequency_sweep(board, clk_hz, codes=(0, 1, 16, 32, 64, 96, 126, 127)):
     pin = board.uo_pin(BIT_SQUARE)
+    ceiling = None
     if pin is None:
-        log("  note: no raw Pin for uo[6]; falling back to byte polling")
+        # No pulse timer: we can only count edges as fast as we can read the
+        # port. Say so, and skip the codes above that — a silently aliased
+        # "measurement" would read as coverage this run does not have.
+        rate = measure_poll_rate(board)
+        ceiling = rate / POLL_SAMPLES_PER_PERIOD
+        log("  note: no raw Pin for uo[6]; polling at %.1f kHz, so only "
+            "codes below %.0f Hz are resolvable" % (rate / 1e3, ceiling))
     for code in codes:
+        want = expected_hz(code, clk_hz)
+        if ceiling is not None and want > ceiling:
+            skip("code %-3d square" % code,
+                 "%.0f Hz needs a raw Pin (polling resolves %.0f Hz)"
+                 % (want, ceiling))
+            continue
         board.set_ui(code)
         time.sleep_ms(50)  # let the DDS settle at the new increment
-        want = expected_hz(code, clk_hz)
         if pin is not None and want > 20:
             got = measure_pin_hz(pin, timeout_us=int(4e6 / want) + 2000)
         else:
@@ -380,6 +417,7 @@ def check_sigma_delta(board, code=64):
 def main(clk_hz=CLK_HZ):
     """Full bring-up self-check. Returns True if every check passed."""
     del _results[:]
+    del _skipped[:]
     log("CORDIC-1 bring-up — %s" % DESIGN)
     board = Board.open()
     board.select()
@@ -402,8 +440,13 @@ def main(clk_hz=CLK_HZ):
 
     failed = [n for n, ok, _ in _results if not ok]
     log("\n%d/%d checks passed" % (len(_results) - len(failed), len(_results)))
+    if _skipped:
+        log("NOT VERIFIED (%d skipped): %s"
+            % (len(_skipped), ", ".join(n.strip() for n, _ in _skipped)))
     if failed:
         log("FAILED: %s" % ", ".join(failed))
+    elif _skipped:
+        log("no failures, but the skipped checks above were never made.")
     else:
         log("ALL PASS — put headphones on the Audio Pmod (uo[7]) and listen.")
     board.set_ui(0)

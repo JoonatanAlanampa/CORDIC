@@ -77,6 +77,7 @@ class Die:
         self.t_reset = 0.0
         self.fault = fault
         self._lcg = 12345
+        self.fmax = None  # set by the sweep_fmax test: clock the die stops at
         # a DIP switch physically holding ui_in[3] high: the firmware then
         # refuses to drive that pin, so writes to it silently do not take
         self.dip_mask = 0x08 if fault == "dip_stuck" else 0x00
@@ -96,7 +97,10 @@ class Die:
     def f_out(self):
         if self.fault == "dead_dds":
             return 1.0  # DDS stuck near DC whatever the code says
-        return _dds_inc(self.code) / (1 << 20) * (self.clk / OPS_DIV)
+        f = _dds_inc(self.code) / (1 << 20) * (self.clk / OPS_DIV)
+        if self.fmax is not None and self.clk > self.fmax:
+            return f * 0.5  # past its Fmax the die stops tracking
+        return f
 
     # --- pin values at the current virtual time -------------------------
     def _t(self):
@@ -268,6 +272,19 @@ class FakeDemoBoard:
         return cls()
 
 
+class PinlessDemoBoard(FakeDemoBoard):
+    """A firmware where tt.pins is gone — the fallback path in Board.uo_pin.
+
+    Most likely future breakage, and the branch nothing else exercises: with
+    no raw Pin there is no pulse timer, so the script has to fall back to
+    polling the output byte and admit which codes it cannot resolve.
+    """
+
+    def __init__(self):
+        super().__init__()
+        del self.pins
+
+
 ttboard = types.ModuleType("ttboard")
 demoboard = types.ModuleType("ttboard.demoboard")
 demoboard.DemoBoard = FakeDemoBoard
@@ -290,13 +307,19 @@ sys.modules["ttboard.mode"] = mode_mod
 import cordic1_bringup as bu  # noqa: E402  (must follow the stubs)
 
 
-def run(fault=None):
+def setup(fault=None, board_cls=FakeDemoBoard):
     global DIE
     DIE = Die(fault)
     CLOCK.us = 0.0
+    demoboard.DemoBoard = board_cls
+
+
+def run(fault=None, board_cls=FakeDemoBoard):
+    setup(fault, board_cls)
     ok = bu.main()
     failed = [n for n, passed, _ in bu._results if not passed]
-    return ok, failed
+    skipped = [n.strip() for n, _ in bu._skipped]
+    return ok, failed, skipped
 
 
 def main():
@@ -305,8 +328,9 @@ def main():
     print("=" * 70)
     print("GOOD DIE")
     print("=" * 70)
-    ok, failed = run()
+    ok, failed, skipped = run()
     assert ok, "good die must pass every check, but these failed: %s" % failed
+    assert not skipped, "nothing should be skipped with pins present: %s" % skipped
 
     for fault, must_catch in (
         ("dead_dds", "code"),
@@ -317,11 +341,48 @@ def main():
         print("\n" + "=" * 70)
         print("FAULT INJECTED: %s" % fault)
         print("=" * 70)
-        ok, failed = run(fault)
+        ok, failed, _ = run(fault)
         assert not ok, "%s die was reported healthy" % fault
         assert any(must_catch in f for f in failed), (
             "%s die failed the wrong checks: %s" % (fault, failed))
         print("-> correctly caught by: %s" % ", ".join(failed))
+
+    print("\n" + "=" * 70)
+    print("FIRMWARE WITHOUT tt.pins (polling fallback)")
+    print("=" * 70)
+    ok, failed, skipped = run(board_cls=PinlessDemoBoard)
+    assert ok, "polling fallback must not report failures: %s" % failed
+    # the high codes are beyond what byte-polling can resolve: they must be
+    # SKIPPED and said so, never quietly passed on an aliased reading
+    assert skipped, "no raw Pin, yet nothing was skipped — aliased passes?"
+    for code in (96, 126):
+        assert any("code %d" % code in s for s in skipped), (
+            "code %d should be unresolvable by polling, got skips: %s"
+            % (code, skipped))
+    assert any("code 0" in n for n, _, _ in bu._results), \
+        "440 Hz is resolvable by polling and should still have been checked"
+    print("-> %d codes measured, %d honestly skipped" % (len(bu._results),
+                                                         len(skipped)))
+
+    print("\n" + "=" * 70)
+    print("demo_scale() — never exercised by main()")
+    print("=" * 70)
+    setup()
+    bu.demo_scale(note_ms=50)
+    assert DIE.code == 127, "demo_scale should leave the die in breathe mode"
+    print("-> ran, ended in breathe mode")
+
+    print("\n" + "=" * 70)
+    print("sweep_fmax() — never exercised by main()")
+    print("=" * 70)
+    setup()
+    DIE.fmax = 42_000_000  # this virtual die stops tracking above 42 MHz
+    last = bu.sweep_fmax(start_hz=25_000_000, stop_hz=60_000_000,
+                         step_hz=5_000_000)
+    assert last is not None, "sweep found no working clock at all"
+    assert 40e6 <= last <= 45e6, (
+        "sweep_fmax reported %.1f MHz for a die that breaks at 42 MHz" % (last / 1e6))
+    print("-> found %.1f MHz for a die that breaks at 42.0 MHz" % (last / 1e6))
 
     print("\nALL HOST TESTS PASSED")
 
